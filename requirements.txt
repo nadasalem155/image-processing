@@ -1,5 +1,5 @@
 streamlit
-opencv-python-headless==4.9.0
+opencv-python-headless>==4.9.0
 numpy
 Pillow
 streamlit-drawable-canvas
@@ -7,4 +7,5 @@ tensorflow
 pandas
 scikit-learn
 matplotlib
+
 
