@@ -1,9 +1,10 @@
-streamlit
-opencv-python-headless>==4.9.0
-numpy
-Pillow
-streamlit-drawable-canvas
-tensorflow
+streamlit==1.36.0
+opencv-python-headless==4.12.0.88
+numpy>=1.26.4
+Pillow==10.4.0
+streamlit-drawable-canvas==0.9.3
+tensorflow==2.20.0rc0
 pandas
 scikit-learn
 matplotlib
+
