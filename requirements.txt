@@ -1,6 +1,7 @@
 streamlit
 numpy
-opencv-python
+opencv-python>=4.9.0
 opencv-contrib-python
 Pillow
+
 streamlit-drawable-canvas
