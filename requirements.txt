@@ -7,5 +7,3 @@ tensorflow
 pandas
 scikit-learn
 matplotlib
-
-
