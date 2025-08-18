@@ -4,7 +4,6 @@ import numpy as np
 import cv2
 import io
 from streamlit_cropper import st_cropper
-from streamlit_drawable_canvas import st_canvas
 
 # ---- Page config ----
 st.set_page_config(page_title="📸🎨🖌 Image Editing App", layout="centered")
@@ -68,41 +67,50 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
 
-    # ---- Remove Tool ----
+    # ---- Remove Tool (Online-safe version) ----
     if apply_remove:
-        st.write("🖌 Draw over the area you want to remove")
-        # Resize image for canvas preview
-        preview_width = 500
-        preview_height = int(preview_width * img.height / img.width)
-        preview_img = img.resize((preview_width, preview_height))
+        st.write("🖌 Draw over the area you want to remove (small version)")
         
-        canvas_result = st_canvas(
-            fill_color="rgba(255,255,255,0)",
-            stroke_width=20,
-            stroke_color="white",
-            background_image=preview_img,
-            update_streamlit=True,
-            height=preview_height,
-            width=preview_width,
-            drawing_mode="freedraw",
-            key="remove_canvas",
+        # Resize image for drawing to reduce memory / Cloud issues
+        small_width = 300
+        aspect_ratio = img.height / img.width
+        small_height = int(small_width * aspect_ratio)
+        img_small = img.resize((small_width, small_height))
+        
+        # Use st_cropper to select the area to remove
+        remove_box = st_cropper(
+            img_small,
+            realtime_update=True,
+            box_color="red",
+            aspect_ratio=None,
+            return_type="box"
         )
+        
         if st.button("Apply Remove"):
-            if canvas_result.image_data is not None:
-                mask = np.array(canvas_result.image_data)[:, :, 3]
-                # Resize mask back to original image size
-                mask = cv2.resize(mask, (img.width, img.height), interpolation=cv2.INTER_NEAREST)
-                cv_img = np.array(img)
-                inpainted = cv2.inpaint(cv_img, mask.astype(np.uint8), 3, cv2.INPAINT_TELEA)
-                img = Image.fromarray(inpainted)
-                st.session_state.base_image = img.copy()
-                st.session_state.history.append(img.copy())
-                st.success("Object removed!")
+            # Convert box coordinates from small image to original image
+            scale_x = img.width / small_width
+            scale_y = img.height / small_height
+            
+            left = int(remove_box['left'] * scale_x)
+            top = int(remove_box['top'] * scale_y)
+            right = int(remove_box['right'] * scale_x)
+            bottom = int(remove_box['bottom'] * scale_y)
+            
+            # Create mask and inpaint
+            cv_img = np.array(img)
+            mask = np.zeros(cv_img.shape[:2], dtype=np.uint8)
+            mask[top:bottom, left:right] = 255
+            inpainted = cv2.inpaint(cv_img, mask, 3, cv2.INPAINT_TELEA)
+            img = Image.fromarray(inpainted)
+            st.session_state.base_image = img.copy()
+            st.session_state.history.append(img.copy())
+            st.success("Object removed!")
 
     # ---- Denoise ----
     if denoise:
         if st.button("Apply Denoise 🧹"):
             cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+            # Check if the image has noise by using standard deviation
             if np.std(cv_img) < 1:
                 st.warning("No noise detected in the image!")
             else:
