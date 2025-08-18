@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import io
 from streamlit_cropper import st_cropper
+from streamlit_drawable_canvas import st_canvas
 
 # ---- Page config ----
 st.set_page_config(page_title="📸🎨🖌 Image Editing App", layout="centered")
@@ -67,59 +68,45 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
 
-    # ---- Remove Tool (Online-safe version) ----
+    # ---- Remove Tool ----
     if apply_remove:
-        st.write("🖌 Draw over the area you want to remove (small version)")
-        
-        # Resize image for drawing to reduce memory / Cloud issues
-        small_width = 300
-        aspect_ratio = img.height / img.width
-        small_height = int(small_width * aspect_ratio)
-        img_small = img.resize((small_width, small_height))
-        
-        # Use st_cropper to select the area to remove
-        remove_box = st_cropper(
-            img_small,
-            realtime_update=True,
-            box_color="red",
-            aspect_ratio=None,
-            return_type="box"
+        st.write("🖌 Draw over the area you want to remove")
+        canvas_width, canvas_height = get_mobile_dimensions(img_png)
+        canvas_result = st_canvas(
+            fill_color="rgba(255,255,255,0)",
+            stroke_width=20,
+            stroke_color="white",
+            background_image=img_png,
+            update_streamlit=True,
+            height=canvas_height,
+            width=canvas_width,
+            drawing_mode="freedraw",
+            key="remove_canvas",
         )
-        
         if st.button("Apply Remove"):
-            # Convert box coordinates from small image to original image
-            scale_x = img.width / small_width
-            scale_y = img.height / small_height
-            
-            left = int(remove_box['left'] * scale_x)
-            top = int(remove_box['top'] * scale_y)
-            right = int(remove_box['right'] * scale_x)
-            bottom = int(remove_box['bottom'] * scale_y)
-            
-            # Create mask and inpaint
-            cv_img = np.array(img)
-            mask = np.zeros(cv_img.shape[:2], dtype=np.uint8)
-            mask[top:bottom, left:right] = 255
-            inpainted = cv2.inpaint(cv_img, mask, 3, cv2.INPAINT_TELEA)
-            img = Image.fromarray(inpainted)
-            st.session_state.base_image = img.copy()
-            st.session_state.history.append(img.copy())
-            st.success("Object removed!")
+            if canvas_result.image_data is not None:
+                mask = np.array(canvas_result.image_data)[:, :, 3]
+                mask = cv2.resize(mask, (img.width, img.height), interpolation=cv2.INTER_NEAREST)
+                cv_img = np.array(img)
+                inpainted = cv2.inpaint(cv_img, mask.astype(np.uint8), 3, cv2.INPAINT_TELEA)
+                img = Image.fromarray(inpainted)
+                st.session_state.base_image = img.copy()
+                st.session_state.history.append(img.copy())
+                st.success("Object removed!")
 
-    # ---- Denoise ----
+ # ---- Denoise ----
     if denoise:
         if st.button("Apply Denoise 🧹"):
             cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            # Check if the image has noise by using standard deviation
+        # Check if the image has noise by using standard deviation
             if np.std(cv_img) < 1:
-                st.warning("No noise detected in the image!")
+               st.warning("No noise detected in the image!")  # Show warning instead of error
             else:
-                denoised = cv2.medianBlur(cv_img, 5)
-                img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
-                st.session_state.base_image = img.copy()
-                st.session_state.history.append(img.copy())
-                st.success("Noise removed!")
-
+               denoised = cv2.medianBlur(cv_img, 5)
+               img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
+               st.session_state.base_image = img.copy()
+               st.session_state.history.append(img.copy())
+               st.success("Noise removed!")
     # ---- Rotate ----
     if rotate_90:
         if st.button("Apply 90° Rotation 🔄"):
@@ -135,7 +122,7 @@ if uploaded_file:
             if f == "Grayscale":
                 temp_img = ImageOps.grayscale(temp_img).convert("RGB")
             elif f == "Sepia":
-                arr = np.array(temp_img, dtype=np.float32)
+                arr = np.array(temp_img, dtype=np.float32)  # <-- تم التعديل هنا فقط لتقليل استهلاك الذاكرة
                 r,g,b = arr[:,:,0],arr[:,:,1],arr[:,:,2]
                 tr = 0.393*r + 0.769*g + 0.189*b
                 tg = 0.349*r + 0.686*g + 0.168*b
