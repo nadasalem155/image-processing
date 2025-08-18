@@ -8,7 +8,3 @@ pandas
 scikit-learn
 matplotlib
 streamlit_cropper==0.3.1
-
-
-
-
