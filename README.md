@@ -12,7 +12,7 @@
 image-processing/ ├── app.py                # Streamlit web application 
                   ├── requirements.txt      # Required dependencies
                   ├── image-editing/        # Folder containing the Jupyter notebook 
-                     │└── editing.ipynb     # Notebook with image editing operations
+                     │── editing.ipynb     # Notebook with image editing operations
                      ├── images/               # Sample images used inside the notebook 
                      └── RESULT/               # Output images generated from the notebook
 
