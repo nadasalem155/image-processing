@@ -71,29 +71,26 @@ if uploaded_file:
     # ---- Remove Tool ----
     if apply_remove:
         st.write("🖌 Draw over the area you want to remove")
-        
-        # Convert image to RGBA for canvas
-        img_for_canvas = img.copy().convert("RGBA")
-        
-        # Resize for canvas to reduce memory usage
-        canvas_width, canvas_height = get_mobile_dimensions(img_for_canvas, max_width=350)
-        img_for_canvas.thumbnail((canvas_width, canvas_height), Image.ANTIALIAS)
+        # Resize image for canvas preview
+        preview_width = 500
+        preview_height = int(preview_width * img.height / img.width)
+        preview_img = img.resize((preview_width, preview_height))
         
         canvas_result = st_canvas(
             fill_color="rgba(255,255,255,0)",
             stroke_width=20,
             stroke_color="white",
-            background_image=img_for_canvas,
+            background_image=preview_img,
             update_streamlit=True,
-            height=canvas_height,
-            width=canvas_width,
+            height=preview_height,
+            width=preview_width,
             drawing_mode="freedraw",
             key="remove_canvas",
         )
-        
         if st.button("Apply Remove"):
             if canvas_result.image_data is not None:
                 mask = np.array(canvas_result.image_data)[:, :, 3]
+                # Resize mask back to original image size
                 mask = cv2.resize(mask, (img.width, img.height), interpolation=cv2.INTER_NEAREST)
                 cv_img = np.array(img)
                 inpainted = cv2.inpaint(cv_img, mask.astype(np.uint8), 3, cv2.INPAINT_TELEA)
@@ -107,13 +104,13 @@ if uploaded_file:
         if st.button("Apply Denoise 🧹"):
             cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
             if np.std(cv_img) < 1:
-               st.warning("No noise detected in the image!")
+                st.warning("No noise detected in the image!")
             else:
-               denoised = cv2.medianBlur(cv_img, 5)
-               img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
-               st.session_state.base_image = img.copy()
-               st.session_state.history.append(img.copy())
-               st.success("Noise removed!")
+                denoised = cv2.medianBlur(cv_img, 5)
+                img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
+                st.session_state.base_image = img.copy()
+                st.session_state.history.append(img.copy())
+                st.success("Noise removed!")
 
     # ---- Rotate ----
     if rotate_90:
