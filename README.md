@@ -3,7 +3,7 @@
 
 ---
 
-🌍 **Live Web App:** [Image Editor](https://image-processing5.streamlit.app/)
+🌍 **Live Web App:** [Open Image Editor](https://image-processing5.streamlit.app/)
 
 ---
 
