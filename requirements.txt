@@ -7,4 +7,5 @@ tensorflow==2.20.0rc0
 pandas
 scikit-learn
 matplotlib
-streamlit_cropper
+streamlit_cropper= 0.3.1
+
