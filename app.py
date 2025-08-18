@@ -3,7 +3,6 @@ from PIL import Image, ImageOps, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 import numpy as np
 import cv2
 import io
-import base64
 from streamlit_cropper import st_cropper
 from streamlit_drawable_canvas import st_canvas
 
@@ -17,13 +16,6 @@ def get_mobile_dimensions(pil_img, max_width=350):
     width = min(pil_img.width, max_width)
     height = int(width * aspect_ratio)
     return width, height
-
-# ---- Function to convert PIL image to data URL for Canvas ----
-def pil_to_data_url(pil_img):
-    buf = io.BytesIO()
-    pil_img.save(buf, format="PNG")
-    encoded = base64.b64encode(buf.getvalue()).decode()
-    return f"data:image/png;base64,{encoded}"
 
 # ---- Sidebar: Adjustments ----
 st.sidebar.header("⚙ Adjustments")
@@ -79,19 +71,26 @@ if uploaded_file:
     # ---- Remove Tool ----
     if apply_remove:
         st.write("🖌 Draw over the area you want to remove")
-        canvas_width, canvas_height = get_mobile_dimensions(img_png)
-        background_url = pil_to_data_url(img_png)  # Convert image to data URL for online compatibility
+        
+        # Convert image to RGBA for canvas
+        img_for_canvas = img.copy().convert("RGBA")
+        
+        # Resize for canvas to reduce memory usage
+        canvas_width, canvas_height = get_mobile_dimensions(img_for_canvas, max_width=350)
+        img_for_canvas.thumbnail((canvas_width, canvas_height), Image.ANTIALIAS)
+        
         canvas_result = st_canvas(
             fill_color="rgba(255,255,255,0)",
             stroke_width=20,
             stroke_color="white",
-            background_image=background_url,  # Use URL instead of PIL object
+            background_image=img_for_canvas,
             update_streamlit=True,
             height=canvas_height,
             width=canvas_width,
             drawing_mode="freedraw",
             key="remove_canvas",
         )
+        
         if st.button("Apply Remove"):
             if canvas_result.image_data is not None:
                 mask = np.array(canvas_result.image_data)[:, :, 3]
@@ -108,13 +107,13 @@ if uploaded_file:
         if st.button("Apply Denoise 🧹"):
             cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
             if np.std(cv_img) < 1:
-                st.warning("No noise detected in the image!")
+               st.warning("No noise detected in the image!")
             else:
-                denoised = cv2.medianBlur(cv_img, 5)
-                img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
-                st.session_state.base_image = img.copy()
-                st.session_state.history.append(img.copy())
-                st.success("Noise removed!")
+               denoised = cv2.medianBlur(cv_img, 5)
+               img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
+               st.session_state.base_image = img.copy()
+               st.session_state.history.append(img.copy())
+               st.success("Noise removed!")
 
     # ---- Rotate ----
     if rotate_90:
