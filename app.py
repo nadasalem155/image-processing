@@ -76,7 +76,7 @@ if uploaded_file:
             fill_color="rgba(255,255,255,0)",
             stroke_width=20,
             stroke_color="white",
-            background_image=np.array(img_png),  # <-- تحويل للصورة إلى numpy array
+            background_image=img_png,  # <-- PIL Image مباشرة
             update_streamlit=True,
             height=canvas_height,
             width=canvas_width,
@@ -94,11 +94,10 @@ if uploaded_file:
                 st.session_state.history.append(img.copy())
                 st.success("Object removed!")
 
- # ---- Denoise ----
+    # ---- Denoise ----
     if denoise:
         if st.button("Apply Denoise 🧹"):
             cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            # Check if the image has noise by using standard deviation
             if np.std(cv_img) < 1:
                st.warning("No noise detected in the image!")
             else:
@@ -123,7 +122,7 @@ if uploaded_file:
             if f == "Grayscale":
                 temp_img = ImageOps.grayscale(temp_img).convert("RGB")
             elif f == "Sepia":
-                arr = np.array(temp_img, dtype=np.float32)  # <-- تقليل استهلاك الذاكرة
+                arr = np.array(temp_img, dtype=np.float32)  # <-- لتقليل استهلاك الذاكرة
                 r,g,b = arr[:,:,0],arr[:,:,1],arr[:,:,2]
                 tr = 0.393*r + 0.769*g + 0.189*b
                 tg = 0.349*r + 0.686*g + 0.168*b
@@ -150,7 +149,7 @@ if uploaded_file:
                 cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
                 img_blur = cv2.edgePreservingFilter(cv_img2, flags=1, sigma_s=60, sigma_r=0.4)
                 temp_img = Image.fromarray(cv2.cvtColor(img_blur, cv2.COLOR_BGR2RGB))
-        st.image(temp_img, caption="Filter Preview", use_container_width=False, width=final_width)
+        st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
 
         if st.button("Apply Filters 🎭"):
             img = temp_img.copy()
@@ -186,7 +185,7 @@ if uploaded_file:
     st.session_state.edited_image = temp_img
 
     # ---- Show final edited image ----
-    st.image(st.session_state.edited_image, caption="Edited Image", use_container_width=False, width=final_width)
+    st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=False, width=final_width)
 
     # ---- Undo button ----
     if st.button("↩ Undo"):
