@@ -167,10 +167,18 @@ if uploaded_file:
         box_data = st_cropper(img_png, realtime_update=True, box_color="blue", aspect_ratio=None, return_type="box")
         if st.button("Apply Text"):
             draw = ImageDraw.Draw(img)
+            scaled_size = int(text_size * 1.5)  # Scale text size by 1.5x
             try:
-                font = ImageFont.truetype("arial.ttf", int(text_size * 1.5))  # Scale text size by 1.5x
+                # Try loading arial.ttf
+                font = ImageFont.truetype("arial.ttf", scaled_size)
             except:
-                font = ImageFont.load_default()._set_size(int(text_size * 1.5))  # Scale default font size
+                try:
+                    # Fallback to a common system font (e.g., DejaVuSans)
+                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", scaled_size)
+                except:
+                    # If no TrueType font is available, use default font with warning
+                    font = ImageFont.load_default()
+                    st.warning("No TrueType font found. Text size may be limited. Please place 'arial.ttf' or another .ttf font in the app directory.")
             left = box_data['left']
             top = box_data['top']
             draw.text((left, top), text_input, fill=text_color, font=font)
