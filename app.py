@@ -1,4 +1,4 @@
-[23/08, 2:37 am] Nada Salem: import streamlit as st
+import streamlit as st
 from PIL import Image, ImageOps, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 import numpy as np
 import cv2
