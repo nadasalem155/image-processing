@@ -26,8 +26,7 @@ sharpness = st.sidebar.slider("Sharpness 🔪", 0.0, 2.0, 1.0, 0.01)
 # ---- Sidebar: Filters & Effects ----
 st.sidebar.header("🎨 Filters & Effects")
 filter_options = ["Grayscale", "Sepia", "Invert", "Blur", "Edge",
-                  "Cartoon", "Emboss", "Sharpen", "Sketch", "HDR",
-                  "Vintage", "Oil Painting", "Emboss Strong", "Cartoon Colorful", "HDR Enhanced", "Pencil Sketch Color"]
+                  "Cartoon", "Cartoon Colorful", "Sketch"]
 apply_filters = st.sidebar.multiselect("Filters 🎭", filter_options)
 
 # ---- Sidebar: Editing Tools ----
@@ -72,11 +71,13 @@ if uploaded_file:
     if apply_remove:
         st.write("🖌 Draw over the area you want to remove")
         canvas_width, canvas_height = get_mobile_dimensions(img_png)
+        img_canvas = img_png.convert("RGB")  # make sure it's RGB
         canvas_result = st_canvas(
             fill_color="rgba(255,255,255,0)",
             stroke_width=20,
             stroke_color="white",
-            background_image=img_png,
+            background_image=img_canvas,
+            background_color="white",  # fix black background online
             update_streamlit=True,
             height=canvas_height,
             width=canvas_width,
@@ -87,26 +88,27 @@ if uploaded_file:
             if canvas_result.image_data is not None:
                 mask = np.array(canvas_result.image_data)[:, :, 3]
                 mask = cv2.resize(mask, (img.width, img.height), interpolation=cv2.INTER_NEAREST)
+                mask = (mask > 0).astype(np.uint8) * 255
                 cv_img = np.array(img)
-                inpainted = cv2.inpaint(cv_img, mask.astype(np.uint8), 3, cv2.INPAINT_TELEA)
+                inpainted = cv2.inpaint(cv_img, mask, 3, cv2.INPAINT_TELEA)
                 img = Image.fromarray(inpainted)
                 st.session_state.base_image = img.copy()
                 st.session_state.history.append(img.copy())
                 st.success("Object removed!")
 
- # ---- Denoise ----
+    # ---- Denoise ----
     if denoise:
         if st.button("Apply Denoise 🧹"):
             cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-        # Check if the image has noise by using standard deviation
             if np.std(cv_img) < 1:
-               st.warning("No noise detected in the image!")  # Show warning instead of error
+               st.warning("No noise detected in the image!")  
             else:
                denoised = cv2.medianBlur(cv_img, 5)
                img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
                st.session_state.base_image = img.copy()
                st.session_state.history.append(img.copy())
                st.success("Noise removed!")
+
     # ---- Rotate ----
     if rotate_90:
         if st.button("Apply 90° Rotation 🔄"):
@@ -122,7 +124,7 @@ if uploaded_file:
             if f == "Grayscale":
                 temp_img = ImageOps.grayscale(temp_img).convert("RGB")
             elif f == "Sepia":
-                arr = np.array(temp_img, dtype=np.float32)  # <-- تم التعديل هنا فقط لتقليل استهلاك الذاكرة
+                arr = np.array(temp_img, dtype=np.float32)
                 r,g,b = arr[:,:,0],arr[:,:,1],arr[:,:,2]
                 tr = 0.393*r + 0.769*g + 0.189*b
                 tg = 0.349*r + 0.686*g + 0.168*b
@@ -140,15 +142,33 @@ if uploaded_file:
             elif f == "Cartoon":
                 cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
                 gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
-                gray = cv2.medianBlur(gray,5)
-                edges = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,9,9)
-                color = cv2.bilateralFilter(cv_img2,9,250,250)
-                cartoon = cv2.bitwise_and(color,color,mask=edges)
+                gray = cv2.medianBlur(gray, 7)
+                edges = cv2.Canny(gray, 50, 150)
+                edges = cv2.bitwise_not(edges)
+                color = cv2.bilateralFilter(cv_img2, d=9, sigmaColor=200, sigmaSpace=200)
+                cartoon = cv2.bitwise_and(color, color, mask=edges)
                 temp_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
-            elif f == "Oil Painting":
+            elif f == "Cartoon Colorful":
                 cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
-                img_blur = cv2.edgePreservingFilter(cv_img2, flags=1, sigma_s=60, sigma_r=0.4)
-                temp_img = Image.fromarray(cv2.cvtColor(img_blur, cv2.COLOR_BGR2RGB))
+                Z = cv_img2.reshape((-1,3))
+                Z = np.float32(Z)
+                K = 8
+                criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.5)
+                _, labels, centers = cv2.kmeans(Z, K, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+                centers = np.uint8(centers)
+                quantized = centers[labels.flatten()].reshape(cv_img2.shape)
+                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
+                edges = cv2.Canny(gray, 50, 150)
+                edges = cv2.bitwise_not(edges)
+                cartoon = cv2.bitwise_and(quantized, quantized, mask=edges)
+                temp_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
+            elif f == "Sketch":
+                cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
+                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
+                inv = cv2.bitwise_not(gray)
+                blur = cv2.GaussianBlur(inv, (21,21), 0)
+                sketch = cv2.divide(gray, 255-blur, scale=256)
+                temp_img = Image.fromarray(sketch)
         st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
 
         if st.button("Apply Filters 🎭"):
@@ -170,8 +190,10 @@ if uploaded_file:
                 font = ImageFont.truetype("arial.ttf", text_size)
             except:
                 font = ImageFont.load_default()
-            left = box_data['left']
-            top = box_data['top']
+            scale_x = img.width / img_png.width
+            scale_y = img.height / img_png.height
+            left = int(box_data['left'] * scale_x)
+            top = int(box_data['top'] * scale_y)
             draw.text((left, top), text_input, fill=text_color, font=font)
             st.session_state.base_image = img.copy()
             st.session_state.history.append(img.copy())
