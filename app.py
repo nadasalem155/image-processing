@@ -1,9 +1,9 @@
 import streamlit as st
-from streamlit_cropper import st_cropper
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import cv2
+import os
 
 st.set_page_config(page_title="Image Editor", layout="wide")
 
@@ -12,7 +12,7 @@ if "base_image" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# Upload
+# ===== Upload =====
 uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 if uploaded_file:
     st.session_state.base_image = Image.open(uploaded_file).convert("RGB")
@@ -23,7 +23,7 @@ img = st.session_state.base_image
 if img:
     st.image(img, caption="Current Image", use_container_width=True)
 
-    # ======= Filters =======
+    # ===== Filters =====
     st.subheader("Filters")
     filter_choice = st.selectbox("Choose Filter", ["None", "Cartoon", "Oil Painting", "HDR"])
     if filter_choice != "None":
@@ -51,13 +51,13 @@ if img:
         st.session_state.history.append(img.copy())
         st.image(img, caption=f"Applied {filter_choice}", use_container_width=True)
 
-    # ======= Remove Object =======
+    # ===== Remove Object =====
     st.subheader("Remove Object")
     canvas_result = st_canvas(
         fill_color="rgba(255,255,255,0)",
         stroke_width=20,
         stroke_color="white",
-        background_color="black",
+        background_color="rgba(0,0,0,0)",   # ✅ شفاف مش اسود
         height=400,
         width=400,
         drawing_mode="freedraw",
@@ -66,7 +66,7 @@ if img:
 
     if st.button("Apply Remove"):
         if canvas_result.image_data is not None:
-            mask = np.array(canvas_result.image_data)[:, :, 3]
+            mask = np.array(canvas_result.image_data)[:, :, 3]  # ✅ ناخد بس الـ Alpha channel
             mask = cv2.resize(mask, (img.width, img.height), interpolation=cv2.INTER_NEAREST)
             mask = (mask > 0).astype(np.uint8) * 255
             cv_img = np.array(img)
@@ -77,7 +77,7 @@ if img:
             st.success("Object removed!")
             st.image(img, caption="After Remove", use_container_width=True)
 
-    # ======= Add Text =======
+    # ===== Add Text =====
     st.subheader("Add Text")
     text_input = st.text_input("Enter Text")
     text_size = st.slider("Text Size (%)", 1, 20, 5)  # نسبة من العرض
@@ -88,16 +88,22 @@ if img:
         if text_input:
             draw = ImageDraw.Draw(img)
             font_px = int((text_size / 100) * img.width)
+
+            # ✅ استخدم خط حقيقي لو متاح
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            if not os.path.exists(font_path):
+                font_path = "arial.ttf"
             try:
-                font = ImageFont.truetype("arial.ttf", font_px)
+                font = ImageFont.truetype(font_path, font_px)
             except:
                 font = ImageFont.load_default()
+
             draw.text((x, y), text_input, fill="white", font=font)
             st.session_state.base_image = img.copy()
             st.session_state.history.append(img.copy())
             st.image(img, caption="After Adding Text", use_container_width=True)
 
-    # ======= Undo =======
+    # ===== Undo =====
     if st.button("Undo"):
         if len(st.session_state.history) > 1:
             st.session_state.history.pop()
