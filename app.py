@@ -124,13 +124,13 @@ if uploaded_file:
                 temp_img = ImageOps.grayscale(temp_img).convert("RGB")
             elif f == "Sepia":
                 arr = np.array(temp_img, dtype=np.float32)
-                r,g,b = arr[:,:,0],arr[:,:,1],arr[:,:,2]
-                tr = 0.393*r + 0.769*g + 0.189*b
-                tg = 0.349*r + 0.686*g + 0.168*b
-                tb = 0.272*r + 0.534*g + 0.131*b
-                arr[:,:,0] = np.clip(tr,0,255)
-                arr[:,:,1] = np.clip(tg,0,255)
-                arr[:,:,2] = np.clip(tb,0,255)
+                r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+                tr = 0.393 * r + 0.769 * g + 0.189 * b
+                tg = 0.349 * r + 0.686 * g + 0.168 * b
+                tb = 0.272 * r + 0.534 * g + 0.131 * b
+                arr[:, :, 0] = np.clip(tr, 0, 255)
+                arr[:, :, 1] = np.clip(tg, 0, 255)
+                arr[:, :, 2] = np.clip(tb, 0, 255)
                 temp_img = Image.fromarray(arr.astype(np.uint8))
             elif f == "Invert":
                 temp_img = ImageOps.invert(temp_img)
@@ -141,15 +141,64 @@ if uploaded_file:
             elif f == "Cartoon":
                 cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
                 gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
-                gray = cv2.medianBlur(gray,5)
-                edges = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,9,9)
-                color = cv2.bilateralFilter(cv_img2,9,250,250)
-                cartoon = cv2.bitwise_and(color,color,mask=edges)
+                gray = cv2.medianBlur(gray, 7)  # Increased kernel for smoother edges
+                edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 7)  # Stronger edges
+                color = cv2.bilateralFilter(cv_img2, 9, 300, 300)  # Enhanced smoothing
+                cartoon = cv2.bitwise_and(color, color, mask=edges)
                 temp_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
+            elif f == "Emboss":
+                temp_img = temp_img.filter(ImageFilter.EMBOSS)
+            elif f == "Sharpen":
+                temp_img = temp_img.filter(ImageFilter.SHARPEN)
+            elif f == "Sketch":
+                cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
+                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
+                inv = cv2.bitwise_not(gray)
+                blur = cv2.GaussianBlur(inv, (21, 21), 0)
+                inv_blur = cv2.bitwise_not(blur)
+                sketch = cv2.divide(gray, inv_blur, scale=256.0)
+                temp_img = Image.fromarray(cv2.cvtColor(sketch, cv2.COLOR_GRAY2RGB))
+            elif f == "HDR":
+                cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
+                hdr = cv2.detailEnhance(cv_img2, sigma_s=12, sigma_r=0.15)
+                temp_img = Image.fromarray(cv2.cvtColor(hdr, cv2.COLOR_BGR2RGB))
+            elif f == "Vintage":
+                arr = np.array(temp_img, dtype=np.float32)
+                arr = arr * np.array([0.8, 0.9, 0.7])  # Adjust RGB for vintage look
+                arr = np.clip(arr, 0, 255)
+                temp_img = Image.fromarray(arr.astype(np.uint8))
+                temp_img = temp_img.filter(ImageFilter.GaussianBlur(2))  # Soft blur
             elif f == "Oil Painting":
                 cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
                 img_blur = cv2.edgePreservingFilter(cv_img2, flags=1, sigma_s=60, sigma_r=0.4)
                 temp_img = Image.fromarray(cv2.cvtColor(img_blur, cv2.COLOR_BGR2RGB))
+            elif f == "Emboss Strong":
+                temp_img = temp_img.filter(ImageFilter.EMBOSS)
+                temp_img = ImageEnhance.Contrast(temp_img).enhance(1.5)  # Increase contrast
+            elif f == "Cartoon Colorful":
+                cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
+                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
+                gray = cv2.medianBlur(gray, 5)
+                edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 9, 5)
+                color = cv2.bilateralFilter(cv_img2, 7, 200, 200)  # Softer smoothing
+                cartoon = cv2.bitwise_and(color, color, mask=edges)
+                cartoon = cv2.convertScaleAbs(cartoon, alpha=1.2, beta=20)  # Boost brightness/contrast
+                temp_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
+            elif f == "HDR Enhanced":
+                cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
+                hdr = cv2.detailEnhance(cv_img2, sigma_s=15, sigma_r=0.2)  # Stronger detail enhancement
+                temp_img = Image.fromarray(cv2.cvtColor(hdr, cv2.COLOR_BGR2RGB))
+                temp_img = ImageEnhance.Contrast(temp_img).enhance(1.3)  # Boost contrast
+            elif f == "Pencil Sketch Color":
+                cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
+                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
+                inv = cv2.bitwise_not(gray)
+                blur = cv2.GaussianBlur(inv, (21, 21), 0)
+                inv_blur = cv2.bitwise_not(blur)
+                sketch = cv2.divide(gray, inv_blur, scale=256.0)
+                sketch_rgb = cv2.cvtColor(sketch, cv2.COLOR_GRAY2RGB)
+                temp_img = Image.fromarray(sketch_rgb)
+                temp_img = ImageEnhance.Color(temp_img).enhance(0.5)  # Subtle color tint
         st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
 
         if st.button("Apply Filters 🎭"):
@@ -162,21 +211,18 @@ if uploaded_file:
     if apply_text:
         st.write("📝 Add Text (choose size & color above the image)")
         text_input = st.text_input("Enter your text", "Hello!")
-        text_size = st.slider("Text Size 🔠", 50, 500, 100)  # Increased range and default size
+        text_size = st.slider("Text Size 🔠", 50, 500, 100)
         text_color = st.color_picker("Text Color 🎨", "#FF0000")
         box_data = st_cropper(img_png, realtime_update=True, box_color="blue", aspect_ratio=None, return_type="box")
         if st.button("Apply Text"):
             draw = ImageDraw.Draw(img)
-            scaled_size = int(text_size * 1.5)  # Scale text size by 1.5x
+            scaled_size = int(text_size * 1.5)
             try:
-                # Try loading arial.ttf
                 font = ImageFont.truetype("arial.ttf", scaled_size)
             except:
                 try:
-                    # Fallback to a common system font (e.g., DejaVuSans)
                     font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", scaled_size)
                 except:
-                    # If no TrueType font is available, use default font with warning
                     font = ImageFont.load_default()
                     st.warning("No TrueType font found. Text size may be limited. Please place 'arial.ttf' or another .ttf font in the app directory.")
             left = box_data['left']
