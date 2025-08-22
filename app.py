@@ -162,15 +162,15 @@ if uploaded_file:
     if apply_text:
         st.write("📝 Add Text (choose size & color above the image)")
         text_input = st.text_input("Enter your text", "Hello!")
-        text_size = st.slider("Text Size 🔠", 20, 300, 80)  # Increased range and default size
+        text_size = st.slider("Text Size 🔠", 50, 500, 100)  # Increased range and default size
         text_color = st.color_picker("Text Color 🎨", "#FF0000")
         box_data = st_cropper(img_png, realtime_update=True, box_color="blue", aspect_ratio=None, return_type="box")
         if st.button("Apply Text"):
             draw = ImageDraw.Draw(img)
             try:
-                font = ImageFont.truetype("arial.ttf", text_size)
+                font = ImageFont.truetype("arial.ttf", int(text_size * 1.5))  # Scale text size by 1.5x
             except:
-                font = ImageFont.load_default()
+                font = ImageFont.load_default()._set_size(int(text_size * 1.5))  # Scale default font size
             left = box_data['left']
             top = box_data['top']
             draw.text((left, top), text_input, fill=text_color, font=font)
