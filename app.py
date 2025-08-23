@@ -7,7 +7,7 @@ from streamlit_cropper import st_cropper
 from streamlit_drawable_canvas import st_canvas
 
 # ---- Filter Functions ----
-def cartoon_filter(img):
+def cartoon_filter(img, intensity=1.0):
     img_array = np.array(img)
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 7)  # Stronger blur to eliminate noise
@@ -16,16 +16,18 @@ def cartoon_filter(img):
     edges = cv2.GaussianBlur(edges, (5, 5), 0)  # Smooth edges for comic-like lines
     color = cv2.bilateralFilter(img_array, 9, 200, 200)  # Very smooth colors
     cartoon = cv2.bitwise_and(color, color, mask=edges)
-    return Image.fromarray(cartoon)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
+    return Image.fromarray(result)
 
-def cartoon_colorful_filter(img):
+def cartoon_colorful_filter(img, intensity=1.0):
     img_array = np.array(img)
     color = cv2.bilateralFilter(img_array, 9, 200, 200)  # Very smooth colors
     hsv = cv2.cvtColor(color, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
-    s = cv2.add(s, 40)  # Balanced saturation boost
+    s = cv2.add(s, int(40 * intensity))  # Adjustable saturation boost
     s = np.clip(s, 0, 255)
-    v = cv2.add(v, 25)  # Balanced brightness boost
+    v = cv2.add(v, int(25 * intensity))  # Adjustable brightness boost
     v = np.clip(v, 0, 255)
     hsv = cv2.merge([h, s, v])
     colorful = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
@@ -34,44 +36,78 @@ def cartoon_colorful_filter(img):
     gray = cv2.medianBlur(gray, 7)
     edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
                                   cv2.THRESH_BINARY, 13, 2)
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=5)  # Thicker, smoother edges
+    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=int(5 * intensity))  # Adjustable edge thickness
     edges = cv2.GaussianBlur(edges, (5, 5), 0)  # Smooth edges for comic-like lines
     colorful = cv2.bitwise_and(colorful, colorful, mask=edges)
-    colorful = cv2.detailEnhance(colorful, sigma_s=10, sigma_r=0.15)  # Enhance details
-    return Image.fromarray(colorful)
+    colorful = cv2.detailEnhance(colorful, sigma_s=int(10 * intensity), sigma_r=0.15 * intensity)  # Adjustable detail enhancement
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, colorful, intensity, 0)
+    return Image.fromarray(result)
 
-def blur_filter(img):
+def blur_filter(img, intensity=1.0):
     img_array = np.array(img)
-    blurred = cv2.GaussianBlur(img_array, (21, 21), 0)  # Softer blur like Snapseed
-    return Image.fromarray(blurred)
+    # Adjust kernel size based on intensity (min 5, max 21)
+    kernel_size = int(5 + 16 * intensity)
+    kernel_size = kernel_size + 1 if kernel_size % 2 == 0 else kernel_size  # Ensure odd kernel size
+    blurred = cv2.GaussianBlur(img_array, (kernel_size, kernel_size), 0)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, blurred, intensity, 0)
+    return Image.fromarray(result)
 
-def hdr_enhanced_filter(img):
+def hdr_enhanced_filter(img, intensity=1.0):
     img_array = np.array(img)
     lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
     l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    clahe = cv2.createCLAHE(clipLimit=2.0 * intensity, tileGridSize=(8, 8))
     l = clahe.apply(l)
     lab = cv2.merge((l, a, b))
     enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
-    return Image.fromarray(enhanced)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, enhanced, intensity, 0)
+    return Image.fromarray(result)
 
-def pencil_sketch_color_filter(img):
+def pencil_sketch_color_filter(img, intensity=1.0):
     img_array = np.array(img)
     # Ensure image is in RGB format (3 channels)
-    if len(img_array.shape) == 2 or img_array.shape[2] == 1:
+    if len(img_array.shape) == 2 or (len(img_array.shape) == 3 and img_array.shape[2] == 1):
         img_array = cv2.cvtColor(img_array, cv2.COLOR_GRAY2RGB)
     # Ensure image size is valid
     if img_array.shape[0] < 10 or img_array.shape[1] < 10:
         img_array = cv2.resize(img_array, (max(img_array.shape[1], 10), max(img_array.shape[0], 10)))
+    # Ensure pixel values are within valid range
+    img_array = np.clip(img_array, 0, 255).astype(np.uint8)
     try:
-        color, sketch = cv2.pencilSketch(img_array, sigma_s=60, sigma_r=0.07, shade_factor=0.15)  # Higher contrast
-        color = cv2.detailEnhance(color, sigma_s=5, sigma_r=0.1)  # Softer detail enhancement
-        # Adjust contrast for natural look
-        color = cv2.convertScaleAbs(color, alpha=1.1, beta=10)
-        return Image.fromarray(color)
+        color, sketch = cv2.pencilSketch(img_array, sigma_s=int(60 * intensity), sigma_r=0.07 * intensity, shade_factor=0.15 * intensity)
+        color = cv2.detailEnhance(color, sigma_s=int(5 * intensity), sigma_r=0.1 * intensity)
+        color = cv2.convertScaleAbs(color, alpha=1.1, beta=int(10 * intensity))
+        # Blend with original image based on intensity
+        result = cv2.addWeighted(img_array, 1 - intensity, color, intensity, 0)
+        return Image.fromarray(result)
     except Exception as e:
-        st.error(f"Error in Pencil Sketch Color filter: {str(e)}")
+        st.error(f"Error in Pencil Sketch Color filter: {str(e)}. Please ensure the image is in RGB format and try again.")
         return img  # Return original image if error occurs
+
+def grayscale_filter(img, intensity=1.0):
+    img_array = np.array(img)
+    cv_img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+    gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+    gray_rgb = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, gray_rgb, intensity, 0)
+    return Image.fromarray(result)
+
+def sepia_filter(img, intensity=1.0):
+    img_array = np.array(img)
+    cv_img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+    sepia_matrix = np.array([[0.272, 0.534, 0.131],
+                             [0.349, 0.686, 0.168],
+                             [0.393, 0.769, 0.189]]) * intensity
+    sepia = cv2.transform(cv_img, sepia_matrix)
+    sepia = np.clip(sepia, 0, 255)
+    sepia_rgb = cv2.cvtColor(sepia, cv2.COLOR_BGR2RGB)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, sepia_rgb, intensity, 0)
+    return Image.fromarray(result)
 
 # ---- Page config ----
 st.set_page_config(page_title="📸🎨🖌 Image Editing App", layout="centered")
@@ -94,6 +130,12 @@ sharpness = st.sidebar.slider("Sharpness 🔪", 0.0, 2.0, 1.0, 0.01)
 st.sidebar.header("🎨 Filters & Effects")
 filter_options = ["Grayscale", "Sepia", "Blur", "Cartoon", "Cartoon Colorful", "HDR Enhanced", "Pencil Sketch Color"]
 apply_filters = st.sidebar.multiselect("Filters 🎭", filter_options)
+
+# Dictionary to store filter intensities
+filter_intensities = {}
+for f in filter_options:
+    if f in apply_filters:
+        filter_intensities[f] = st.sidebar.slider(f"Intensity of {f} (%)", 0.0, 1.0, 1.0, 0.01, key=f"intensity_{f}")
 
 # ---- Sidebar: Editing Tools ----
 st.sidebar.header("🛠 Editing Tools")
@@ -185,28 +227,21 @@ if uploaded_file:
     temp_img = img.copy()
     if apply_filters:
         for f in apply_filters:
+            intensity = filter_intensities.get(f, 1.0)
             if f == "Grayscale":
-                cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
-                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
-                temp_img = Image.fromarray(cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB))
+                temp_img = grayscale_filter(temp_img, intensity)
             elif f == "Sepia":
-                cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
-                sepia_filter = np.array([[0.272, 0.534, 0.131],
-                                        [0.349, 0.686, 0.168],
-                                        [0.393, 0.769, 0.189]])
-                cv_img2 = cv2.transform(cv_img2, sepia_filter)
-                cv_img2 = np.clip(cv_img2, 0, 255)
-                temp_img = Image.fromarray(cv2.cvtColor(cv_img2, cv2.COLOR_BGR2RGB))
+                temp_img = sepia_filter(temp_img, intensity)
             elif f == "Blur":
-                temp_img = blur_filter(temp_img)
+                temp_img = blur_filter(temp_img, intensity)
             elif f == "Cartoon":
-                temp_img = cartoon_filter(temp_img)
+                temp_img = cartoon_filter(temp_img, intensity)
             elif f == "Cartoon Colorful":
-                temp_img = cartoon_colorful_filter(temp_img)
+                temp_img = cartoon_colorful_filter(temp_img, intensity)
             elif f == "HDR Enhanced":
-                temp_img = hdr_enhanced_filter(temp_img)
+                temp_img = hdr_enhanced_filter(temp_img, intensity)
             elif f == "Pencil Sketch Color":
-                temp_img = pencil_sketch_color_filter(temp_img)
+                temp_img = pencil_sketch_color_filter(temp_img, intensity)
 
         st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
 
