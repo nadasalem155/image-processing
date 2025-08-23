@@ -10,43 +10,43 @@ from streamlit_drawable_canvas import st_canvas
 def cartoon_filter(img):
     img_array = np.array(img)
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 7)  # Softer blur for natural look
+    gray = cv2.medianBlur(gray, 5)  # Stronger blur for sharper edges
     edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 11, 7)  # Softer edges
-    color = cv2.bilateralFilter(img_array, 9, 200, 200)  # Reduced sigma for smoother colors
+                                  cv2.THRESH_BINARY, 9, 5)  # Sharper edges
+    color = cv2.bilateralFilter(img_array, 9, 150, 150)  # Stronger color contrast
     cartoon = cv2.bitwise_and(color, color, mask=edges)
     return Image.fromarray(cartoon)
 
 def cartoon_colorful_filter(img):
     img_array = np.array(img)
-    color = cv2.bilateralFilter(img_array, 9, 200, 200)  # Smoother colors
+    color = cv2.bilateralFilter(img_array, 9, 150, 150)  # Stronger color contrast
     hsv = cv2.cvtColor(color, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
-    s = cv2.add(s, 30)  # Moderate saturation boost
+    s = cv2.add(s, 50)  # Stronger saturation boost
     s = np.clip(s, 0, 255)
-    v = cv2.add(v, 20)  # Moderate brightness boost
+    v = cv2.add(v, 30)  # Stronger brightness boost
     v = np.clip(v, 0, 255)
     hsv = cv2.merge([h, s, v])
     colorful = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-    # Add soft edges
+    # Add stronger edges
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 7)
+    gray = cv2.medianBlur(gray, 5)
     edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 11, 7)
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=1)  # Thinner edges
+                                  cv2.THRESH_BINARY, 9, 5)
+    edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=2)  # Thicker edges
     colorful = cv2.bitwise_and(colorful, colorful, mask=edges)
     return Image.fromarray(colorful)
 
 def blur_filter(img):
     img_array = np.array(img)
-    blurred = cv2.GaussianBlur(img_array, (21, 21), 0)  # Stronger blur like Photoshop
+    blurred = cv2.GaussianBlur(img_array, (31, 31), 0)  # Stronger blur like Photoshop
     return Image.fromarray(blurred)
 
 def hdr_enhanced_filter(img):
     img_array = np.array(img)
     lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
     l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))  # Softer CLAHE for natural look
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
     l = clahe.apply(l)
     lab = cv2.merge((l, a, b))
     enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
@@ -54,7 +54,8 @@ def hdr_enhanced_filter(img):
 
 def pencil_sketch_color_filter(img):
     img_array = np.array(img)
-    color, sketch = cv2.pencilSketch(img_array, sigma_s=60, sigma_r=0.07, shade_factor=0.05)
+    color, sketch = cv2.pencilSketch(img_array, sigma_s=60, sigma_r=0.07, shade_factor=0.1)  # Higher shade_factor for more contrast
+    color = cv2.detailEnhance(color, sigma_s=10, sigma_r=0.15)  # Enhance details
     return Image.fromarray(color)
 
 # ---- Page config ----
