@@ -40,7 +40,7 @@ def cartoon_colorful_filter(img):
 
 def blur_filter(img):
     img_array = np.array(img)
-    blurred = cv2.GaussianBlur(img_array, (41, 41), 0)  # Deeper blur like Photoshop
+    blurred = cv2.GaussianBlur(img_array, (21, 21), 0)  # Softer blur like Snapseed
     return Image.fromarray(blurred)
 
 def hdr_enhanced_filter(img):
