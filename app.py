@@ -7,71 +7,89 @@ from streamlit_cropper import st_cropper
 from streamlit_drawable_canvas import st_canvas
 
 # ---- Filter Functions ----
-def cartoon_filter(img):
+def cartoon_filter(img, intensity=1.0):
     img_array = np.array(img)
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 5)  # Moderate blur for smooth details
-    edges = cv2.Canny(gray, 50, 150)  # Strong, smooth edges like ToonMe
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=3)  # Thicker lines
+    edges = cv2.Canny(gray, 30, 100)  # Stronger, smoother edges like ToonMe
+    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=int(3 * intensity))  # Adjustable line thickness
     edges = cv2.GaussianBlur(edges, (3, 3), 0)  # Smooth edges
     edges = cv2.bitwise_not(edges)  # Invert for black lines
-    color = cv2.bilateralFilter(img_array, 9, 150, 150)  # Smooth, vibrant colors
+    color = cv2.bilateralFilter(img_array, 9, 200, 200)  # Smoother, vibrant colors
     cartoon = cv2.bitwise_and(color, color, mask=edges)
-    cartoon = cv2.detailEnhance(cartoon, sigma_s=10, sigma_r=0.15)  # Enhance details
-    return Image.fromarray(cartoon)
+    cartoon = cv2.detailEnhance(cartoon, sigma_s=10 * intensity, sigma_r=0.15 * intensity)  # Adjustable detail enhancement
+    cartoon = cv2.convertScaleAbs(cartoon, alpha=1.2, beta=20 * intensity)  # Boost color vibrancy
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
+    return Image.fromarray(result)
 
-def cartoon_colorful_filter(img):
+def cartoon_colorful_filter(img, intensity=1.0):
     img_array = np.array(img)
     color = cv2.bilateralFilter(img_array, 9, 300, 300)  # Strong color smoothing
     hsv = cv2.cvtColor(color, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
-    s = cv2.add(s, 50)  # Increase saturation
+    s = cv2.add(s, int(50 * intensity))  # Adjustable saturation
     s = np.clip(s, 0, 255)
-    v = cv2.add(v, 30)  # Increase brightness
+    v = cv2.add(v, int(30 * intensity))  # Adjustable brightness
     v = np.clip(v, 0, 255)
     hsv = cv2.merge([h, s, v])
     colorful = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
     # Add clear edges
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 5)
-    edges = cv2.Canny(gray, 50, 150)  # Strong edges for ToonMe style
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=3)  # Thicker edges
+    edges = cv2.Canny(gray, 30, 100)  # Strong edges for ToonMe style
+    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=int(3 * intensity))  # Adjustable edge thickness
     edges = cv2.GaussianBlur(edges, (3, 3), 0)  # Smooth edges
     edges = cv2.bitwise_not(edges)  # Invert for black lines
     colorful = cv2.bitwise_and(colorful, colorful, mask=edges)
-    colorful = cv2.detailEnhance(colorful, sigma_s=10, sigma_r=0.15)  # Enhance details
-    return Image.fromarray(colorful)
+    colorful = cv2.detailEnhance(colorful, sigma_s=10 * intensity, sigma_r=0.15 * intensity)  # Adjustable detail enhancement
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, colorful, intensity, 0)
+    return Image.fromarray(result)
 
-def blur_filter(img):
+def blur_filter(img, intensity=1.0):
     img_array = np.array(img)
-    blurred = cv2.GaussianBlur(img_array, (15, 15), 0)  # Softer blur
-    return Image.fromarray(blurred)
+    # Adjust kernel size based on intensity (min 5, max 15)
+    kernel_size = int(5 + 10 * intensity)
+    kernel_size = kernel_size + 1 if kernel_size % 2 == 0 else kernel_size  # Ensure odd kernel size
+    blurred = cv2.GaussianBlur(img_array, (kernel_size, kernel_size), 0)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, blurred, intensity, 0)
+    return Image.fromarray(result)
 
-def hdr_enhanced_filter(img):
+def hdr_enhanced_filter(img, intensity=1.0):
     img_array = np.array(img)
     lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
     l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    clahe = cv2.createCLAHE(clipLimit=3.0 * intensity, tileGridSize=(8, 8))
     l = clahe.apply(l)
     lab = cv2.merge((l, a, b))
     enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
-    return Image.fromarray(enhanced)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, enhanced, intensity, 0)
+    return Image.fromarray(result)
 
-def grayscale_filter(img):
+def grayscale_filter(img, intensity=1.0):
     img_array = np.array(img)
     cv_img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
     gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
-    return Image.fromarray(cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB))
+    gray_rgb = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, gray_rgb, intensity, 0)
+    return Image.fromarray(result)
 
-def sepia_filter(img):
+def sepia_filter(img, intensity=1.0):
     img_array = np.array(img)
     cv_img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
     sepia_matrix = np.array([[0.272, 0.534, 0.131],
                              [0.349, 0.686, 0.168],
-                             [0.393, 0.769, 0.189]])
+                             [0.393, 0.769, 0.189]]) * intensity
     sepia = cv2.transform(cv_img, sepia_matrix)
     sepia = np.clip(sepia, 0, 255)
-    return Image.fromarray(cv2.cvtColor(sepia, cv2.COLOR_BGR2RGB))
+    sepia_rgb = cv2.cvtColor(sepia, cv2.COLOR_BGR2RGB)
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, sepia_rgb, intensity, 0)
+    return Image.fromarray(result)
 
 # ---- Page config ----
 st.set_page_config(page_title="📸🎨🖌 Image Editing App", layout="centered")
@@ -88,12 +106,18 @@ def get_mobile_dimensions(pil_img, max_width=350):
 st.sidebar.header("⚙ Adjustments")
 brightness = st.sidebar.slider("Brightness ☀", 0.0, 2.0, 1.0, 0.01)
 contrast = st.sidebar.slider("Contrast 🎚", 0.0, 2.0, 1.0, 0.01)
-sharpness = st.sidebar.slider("Sharpness 🔪", 0.0, 2.0, 1.0, 0.01)
+sharpness = st.sidebar.slider("Sharpness 🔪", 0.0, 5.0, 1.0, 0.01)  # Expanded range for stronger sharpness
 
 # ---- Sidebar: Filters & Effects ----
 st.sidebar.header("🎨 Filters & Effects")
 filter_options = ["Grayscale", "Sepia", "Blur", "Cartoon", "Cartoon Colorful", "HDR Enhanced"]
 apply_filters = st.sidebar.multiselect("Filters 🎭", filter_options)
+
+# Dictionary to store filter intensities
+filter_intensities = {}
+for f in filter_options:
+    if f in apply_filters:
+        filter_intensities[f] = st.sidebar.slider(f"Intensity of {f} (%)", 0.0, 1.0, 1.0, 0.01, key=f"intensity_{f}")
 
 # ---- Sidebar: Editing Tools ----
 st.sidebar.header("🛠 Editing Tools")
@@ -185,22 +209,28 @@ if uploaded_file:
     temp_img = img.copy()
     if apply_filters:
         for f in apply_filters:
+            intensity = filter_intensities.get(f, 1.0)
             if f == "Grayscale":
-                temp_img = grayscale_filter(temp_img)
+                temp_img = grayscale_filter(temp_img, intensity)
             elif f == "Sepia":
-                temp_img = sepia_filter(temp_img)
+                temp_img = sepia_filter(temp_img, intensity)
             elif f == "Blur":
-                temp_img = blur_filter(temp_img)
+                temp_img = blur_filter(temp_img, intensity)
             elif f == "Cartoon":
-                temp_img = cartoon_filter(temp_img)
+                temp_img = cartoon_filter(temp_img, intensity)
             elif f == "Cartoon Colorful":
-                temp_img = cartoon_colorful_filter(temp_img)
+                temp_img = cartoon_colorful_filter(temp_img, intensity)
             elif f == "HDR Enhanced":
-                temp_img = hdr_enhanced_filter(temp_img)
+                temp_img = hdr_enhanced_filter(temp_img, intensity)
 
         # Apply adjustments (Brightness, Contrast, Sharpness) to the preview
         temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
         temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
+        # Enhanced sharpness with detailEnhance for high values
+        if sharpness > 2.0:
+            temp_array = np.array(temp_img)
+            temp_array = cv2.detailEnhance(temp_array, sigma_s=10 * (sharpness - 2.0) / 3.0, sigma_r=0.15)
+            temp_img = Image.fromarray(temp_array)
         temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
 
         st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
@@ -240,6 +270,11 @@ if uploaded_file:
     temp_img = st.session_state.base_image.copy()
     temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
     temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
+    # Enhanced sharpness with detailEnhance for high values
+    if sharpness > 2.0:
+        temp_array = np.array(temp_img)
+        temp_array = cv2.detailEnhance(temp_array, sigma_s=10 * (sharpness - 2.0) / 3.0, sigma_r=0.15)
+        temp_img = Image.fromarray(temp_array)
     temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
     st.session_state.edited_image = temp_img
 
