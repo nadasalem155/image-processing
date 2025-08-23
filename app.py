@@ -25,9 +25,7 @@ sharpness = st.sidebar.slider("Sharpness 🔪", 0.0, 2.0, 1.0, 0.01)
 
 # ---- Sidebar: Filters & Effects ----
 st.sidebar.header("🎨 Filters & Effects")
-filter_options = ["Grayscale", "Sepia", "Invert", "Blur", "Edge",
-                  "Cartoon", "Emboss", "Sharpen", "Sketch", "HDR",
-                  "Vintage", "Oil Painting", "Emboss Strong", "Cartoon Colorful", "HDR Enhanced", "Pencil Sketch Color"]
+filter_options = ["Grayscale", "Sepia", "Cartoon", "Sketch", "Blur", "Sharpen"]
 apply_filters = st.sidebar.multiselect("Filters 🎭", filter_options)
 
 # ---- Sidebar: Editing Tools ----
@@ -122,111 +120,38 @@ if uploaded_file:
         for f in apply_filters:
             cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
             if f == "Grayscale":
-                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
+                gray = cv2.cvtColor(cv_img2, cv2.COLOR_RGB2GRAY)
                 temp_img = Image.fromarray(cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB))
             elif f == "Sepia":
-                sepia_matrix = np.array([[0.393, 0.769, 0.189],
+                sepia_filter = np.array([[0.272, 0.534, 0.131],
                                         [0.349, 0.686, 0.168],
-                                        [0.272, 0.534, 0.131]])
-                sepia_img = cv2.transform(cv_img2, sepia_matrix)
+                                        [0.393, 0.769, 0.189]])
+                sepia_img = cv2.transform(cv_img2, sepia_filter)
                 sepia_img = np.clip(sepia_img, 0, 255)
                 temp_img = Image.fromarray(cv2.cvtColor(sepia_img, cv2.COLOR_BGR2RGB))
-            elif f == "Invert":
-                inverted = cv2.bitwise_not(cv_img2)
-                temp_img = Image.fromarray(cv2.cvtColor(inverted, cv2.COLOR_BGR2RGB))
-            elif f == "Blur":
-                blurred = cv2.GaussianBlur(cv_img2, (21, 21), 0)  # Stronger blur with larger kernel
-                temp_img = Image.fromarray(cv2.cvtColor(blurred, cv2.COLOR_BGR2RGB))
-            elif f == "Edge":
-                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
-                edges = cv2.Canny(gray, 100, 200)
-                temp_img = Image.fromarray(cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB))
             elif f == "Cartoon":
-                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
+                gray = cv2.cvtColor(cv_img2, cv2.COLOR_RGB2GRAY)
                 gray = cv2.medianBlur(gray, 5)
-                edges = cv2.Canny(gray, 80, 150)
-                edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=2)
-                edges = cv2.bitwise_not(edges)
-                color = cv2.bilateralFilter(cv_img2, 9, 300, 300)
+                edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
+                                              cv2.THRESH_BINARY, 9, 9)
+                color = cv2.bilateralFilter(cv_img2, 9, 250, 250)
                 cartoon = cv2.bitwise_and(color, color, mask=edges)
                 temp_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
-            elif f == "Emboss":
-                kernel = np.array([[-2, -1, 0],
-                                  [-1,  1, 1],
-                                  [ 0,  1, 2]])
-                embossed = cv2.filter2D(cv_img2, -1, kernel)
-                temp_img = Image.fromarray(cv2.cvtColor(embossed, cv2.COLOR_BGR2RGB))
+            elif f == "Sketch":
+                gray = cv2.cvtColor(cv_img2, cv2.COLOR_RGB2GRAY)
+                inv = 255 - gray
+                blur = cv2.GaussianBlur(inv, (21, 21), 0)
+                sketch = cv2.divide(gray, 255 - blur, scale=256)
+                temp_img = Image.fromarray(cv2.cvtColor(sketch, cv2.COLOR_GRAY2RGB))
+            elif f == "Blur":
+                blurred = cv2.GaussianBlur(cv_img2, (15, 15), 0)
+                temp_img = Image.fromarray(cv2.cvtColor(blurred, cv2.COLOR_BGR2RGB))
             elif f == "Sharpen":
                 kernel = np.array([[0, -1, 0],
                                   [-1, 5, -1],
                                   [0, -1, 0]])
                 sharpened = cv2.filter2D(cv_img2, -1, kernel)
                 temp_img = Image.fromarray(cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB))
-            elif f == "Sketch":
-                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
-                gray = cv2.medianBlur(gray, 5)
-                edges = cv2.Canny(gray, 60, 120)
-                edges = cv2.bitwise_not(edges)
-                blurred = cv2.GaussianBlur(gray, (21, 21), 0)
-                sketch = cv2.divide(gray, blurred, scale=256.0)
-                temp_img = Image.fromarray(cv2.cvtColor(sketch, cv2.COLOR_GRAY2RGB))
-            elif f == "HDR":
-                hdr = cv2.detailEnhance(cv_img2, sigma_s=30, sigma_r=0.3)
-                hdr = cv2.convertScaleAbs(hdr, alpha=1.2, beta=20)
-                temp_img = Image.fromarray(cv2.cvtColor(hdr, cv2.COLOR_BGR2RGB))
-            elif f == "Vintage":
-                sepia_matrix = np.array([[0.7, 0.9, 0.5],
-                                        [0.6, 0.8, 0.4],
-                                        [0.5, 0.7, 0.3]])
-                vintage = cv2.transform(cv_img2, sepia_matrix)
-                vintage = np.clip(vintage, 0, 255)
-                noise = np.random.normal(0, 15, vintage.shape).astype(np.uint8)
-                vintage = np.clip(vintage + noise, 0, 255)
-                temp_img = Image.fromarray(cv2.cvtColor(vintage, cv2.COLOR_BGR2RGB))
-            elif f == "Oil Painting":
-                oil = cv2.xphoto.oilPainting(cv_img2, size=7, dynRatio=1)
-                temp_img = Image.fromarray(cv2.cvtColor(oil, cv2.COLOR_BGR2RGB))
-            elif f == "Emboss Strong":
-                kernel = np.array([[-2, -1, 0],
-                                  [-1, 1, 1],
-                                  [0, 1, 2]])
-                embossed = cv2.filter2D(cv_img2, -1, kernel)
-                embossed = cv2.convertScaleAbs(embossed, alpha=1.5, beta=30)
-                temp_img = Image.fromarray(cv2.cvtColor(embossed, cv2.COLOR_BGR2RGB))
-            elif f == "Cartoon Colorful":
-                # Convert to HSV for saturation boost
-                hsv_img = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2HSV)
-                h, s, v = cv2.split(hsv_img)
-                s = cv2.add(s, 50)  # Increase saturation
-                s = np.clip(s, 0, 255)
-                v = cv2.add(v, 30)  # Increase brightness
-                v = np.clip(v, 0, 255)
-                hsv_img = cv2.merge([h, s, v])
-                cv_img2 = cv2.cvtColor(hsv_img, cv2.COLOR_HSV2BGR)
-                # Cartoon effect with bold outlines
-                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
-                gray = cv2.medianBlur(gray, 5)
-                edges = cv2.Canny(gray, 50, 100)  # Softer but clear edges
-                edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=2)  # Thicker outlines
-                edges = cv2.bitwise_not(edges)
-                color = cv2.bilateralFilter(cv_img2, 9, 300, 300)  # Strong smoothing for vibrant colors
-                cartoon = cv2.bitwise_and(color, color, mask=edges)
-                cartoon = cv2.convertScaleAbs(cartoon, alpha=1.4, beta=40)  # Enhance vibrancy
-                temp_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
-            elif f == "HDR Enhanced":
-                hdr = cv2.detailEnhance(cv_img2, sigma_s=40, sigma_r=0.4)
-                hdr = cv2.convertScaleAbs(hdr, alpha=1.3, beta=30)
-                temp_img = Image.fromarray(cv2.cvtColor(hdr, cv2.COLOR_BGR2RGB))
-            elif f == "Pencil Sketch Color":
-                gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
-                gray = cv2.medianBlur(gray, 5)
-                edges = cv2.Canny(gray, 60, 120)
-                edges = cv2.bitwise_not(edges)
-                blurred = cv2.GaussianBlur(gray, (21, 21), 0)
-                sketch = cv2.divide(gray, blurred, scale=256.0)
-                sketch_rgb = cv2.cvtColor(sketch, cv2.COLOR_GRAY2RGB)
-                blend = cv2.addWeighted(cv_img2, 0.4, sketch_rgb, 0.6, 0)
-                temp_img = Image.fromarray(cv2.cvtColor(blend, cv2.COLOR_BGR2RGB))
         st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
 
         if st.button("Apply Filters 🎭"):
