@@ -1,45 +1,48 @@
 # 🎨 image-processing  
 
-"Interactive Image Editor – Python project available as a Jupyter Notebook and a standalone .py file. Apply various filters, rotate, crop, remove objects, add text and emojis, and enhance images interactively within the notebook or as a web application."  
+"Interactive Image Editor – Python project available as a Jupyter Notebook and a standalone .py file. Apply various filters, rotate, crop, remove objects, and enhance images interactively within the notebook or as a web application."  
 
-🔗 [Try the Web App here](https://image-processing5.streamlit.app/)  
+🔗 [Try the Web App here](https://your-custom-link.com)  
 
 ---
 
 ## ✨ Features  
 
 ### 📝 Notebook (image-editing/editing.ipynb)  
-The Jupyter Notebook demonstrates how each image-processing technique works step by step. You can:  
-- 🖼️ **Crop & Resize** – manually select regions of interest or scale images.  
-- 🔄 **Rotate & Flip** – rotate images by angles or flip horizontally/vertically.  
-- 🧹 **Denoising** – reduce image noise using OpenCV filters.  
-- 🌈 **Color Adjustments** – change hue, saturation, and lightness levels.  
-- ⚡ **Histogram Equalization** – improve contrast (with and without CLAHE).  
-- 🎭 **Apply Filters** – cartoon effect, vintage, oil painting, watercolor, etc.  
-- ✍️ **Add Text & Emojis** – overlay text or fun emojis on images.  
-- 💎 **Gamma Correction** – adjust brightness in a non-linear way.  
-- 😊 **Face Beautification** – smoothen skin and enhance facial features.  
-- 📂 **Save Results** – edited outputs are stored in the `RESULT/` folder.  
+The Jupyter Notebook contains step-by-step implementations of different image processing techniques using OpenCV and PIL. Each function demonstrates its effect clearly:  
 
-Great for learning how each transformation works programmatically with OpenCV and PIL.  
+1. 📏 **Resize** – change image dimensions while keeping proportions or setting custom width/height.  
+2. 🎨 **Filters** – apply predefined artistic filters.  
+3. 🧹 **Denoising** – remove noise and smooth images using OpenCV’s `fastNlMeansDenoisingColored`.  
+4. 🔆 **Brightness & Contrast** – adjust image lightness and contrast values numerically.  
+5. 🔄 **Rotate, Flip & Crop** – enter custom values (angles, flip axis, crop dimensions) for precise transformations.  
+6. 🌈 **Adjust Hue** – modify color tones by shifting hue values.  
+7. 💎 **Gamma Correction** – non-linear brightness adjustment to lighten or darken naturally.  
+8. ⚡ **CLAHE Color Equalization** – enhance local contrast and details using Contrast Limited Adaptive Histogram Equalization.  
+9. 🖌️ **Oil Painting Effect** – simulate brush-stroke style painting.  
+10. 💧 **Watercolor Effect** – create a smooth watercolor-like look.  
+11. 🕰️ **Vintage Effect** – add retro style tones to the image.  
+12. 😊 **Face Beautification** – smooth skin and enhance facial features for portraits.  
+13. 🧽 **Remove Objects** – erase unwanted areas by selecting regions and replacing them with surrounding pixels.  
+
+All results from the notebook are saved into the `RESULT/` folder.  
 
 ---
 
 ### 🌐 Web Application (app.py)  
-The web version is built with **Streamlit**, making it easy to edit images interactively:  
-- 📤 **Upload an Image** – load your own photo to start editing.  
-- 🎨 **Adjust Hue & Saturation** – fine-tune colors to your preference.  
-- 🔆 **Brightness & Contrast Control** – enhance visibility and tone.  
-- 🧹 **Denoising** – smooth noisy images.  
-- ✂️ **Resize & Crop** – cut or scale images directly in the browser.  
-- 🔄 **Rotate & Flip** – orientation adjustments with a single click.  
-- 🎭 **Creative Filters** – cartoon, oil painting, watercolor, vintage.  
-- 💎 **Gamma Correction** – adjust lighting naturally.  
-- 😊 **Face Beautification** – quick beauty enhancements.  
-- 🧽 **Object Removal** – erase unwanted regions by drawing over them.  
-- 😃 **Add Text & Emojis** – personalize with captions and icons.  
-
-The web app is user-friendly and requires no coding knowledge.  
+The Streamlit web app provides an **interactive UI** for image editing with the following features:  
+- 📤 **Upload an Image** – import any photo.  
+- 📏 **Resize & Crop** – change dimensions or crop areas directly in the browser.  
+- 🔄 **Rotate & Flip** – adjust orientation instantly.  
+- 🎨 **Filters** – cartoon, vintage, oil painting, watercolor, and more.  
+- 🧹 **Denoising** – remove unwanted noise.  
+- 🔆 **Brightness & Contrast** – sliders to enhance or reduce tone.  
+- 🌈 **Adjust Hue & Saturation** – control colors dynamically.  
+- 💎 **Gamma Correction** – improve lighting.  
+- ⚡ **CLAHE Equalization** – enhance contrast in specific regions.  
+- 😊 **Face Beautification** – one-click beautify option.  
+- 🧽 **Remove Objects** – paint over objects to erase them.  
+- ✍️ **Add Text & Emojis** – personalize images with captions or fun icons (web-only feature).  
 
 ---
 
@@ -53,8 +56,8 @@ image-processing/ │-- app.py                  # Streamlit web application │-
 
 ### ▶️ Notebook  
 1. Open `image-editing/editing.ipynb` in Jupyter Notebook.  
-2. Run the cells to apply filters or transformations.  
-3. Input images are in `images/` and edited results will be saved to `RESULT/`.  
+2. Run the cells sequentially to apply transformations.  
+3. Input images are in `images/` and edited results will be saved in `RESULT/`.  
 
 ### 🌐 Web App  
 1. Install the dependencies:  
@@ -78,11 +81,11 @@ streamlit run app.py
 
 🎯 Use Cases
 
-Quick photo touch-ups.
+Quick photo enhancements and artistic effects.
 
-Learning and experimenting with OpenCV & PIL.
+Learning and experimenting with OpenCV & PIL functions.
 
-Building a foundation for advanced AI-based image editing projects.
+Foundation for more advanced AI-powered editing projects.
 
 
 
@@ -92,6 +95,6 @@ Building a foundation for advanced AI-based image editing projects.
 
 Input samples are available in the images/ folder.
 
-All edited outputs from the notebook will be stored in RESULT/.
+Notebook results are stored in RESULT/.
 
-The web app does not require coding skills—just upload and edit.
+Web app provides a beginner-friendly interface for editing without coding.
