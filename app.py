@@ -8,19 +8,36 @@ from streamlit_drawable_canvas import st_canvas
 
 # ---- Filter Functions ----
 def cartoon_filter(img, intensity=1.0):
+    if intensity == 0:
+        return img
     img_array = np.array(img)
+    
+    def color_quantization(im, k):
+        data = np.float32(im).reshape((-1, 3))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 0.001)
+        ret, label, center = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        center = np.uint8(center)
+        result = center[label.flatten()]
+        result = result.reshape(im.shape)
+        return result
+    
+    # Set k based on intensity: higher intensity, fewer colors (more cartoonish)
+    k = max(4, 16 - int(12 * intensity))
+    quantized = color_quantization(img_array, k)
+    
+    # Get edges
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 5)  # Moderate blur for smooth details
-    edges = cv2.Canny(gray, 30, 100)  # Stronger, smoother edges like ToonMe
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=int(3 * intensity))  # Adjustable line thickness
-    edges = cv2.GaussianBlur(edges, (3, 3), 0)  # Smooth edges
-    edges = cv2.bitwise_not(edges)  # Invert for black lines
-    color = cv2.bilateralFilter(img_array, 9, 200, 200)  # Smoother, vibrant colors
-    cartoon = cv2.bitwise_and(color, color, mask=edges)
-    cartoon = cv2.detailEnhance(cartoon, sigma_s=10 * intensity, sigma_r=0.15 * intensity)  # Adjustable detail enhancement
-    cartoon = cv2.convertScaleAbs(cartoon, alpha=1.2, beta=20 * intensity)  # Boost color vibrancy
-    # Blend with original image based on intensity
+    blurred = cv2.medianBlur(gray, 7)
+    block_size = 9
+    c = 2 + int(3 * intensity)  # Adjust for stronger edges with higher intensity
+    edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, c)
+    
+    # Combine quantized colors with edges
+    cartoon = cv2.bitwise_and(quantized, quantized, mask=edges)
+    
+    # Blend with original based on intensity
     result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
+    
     return Image.fromarray(result)
 
 def cartoon_colorful_filter(img, intensity=1.0):
