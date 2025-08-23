@@ -1,109 +1,92 @@
-import streamlit as st
-import cv2
-import numpy as np
-from PIL import Image, ImageEnhance, ImageFont, ImageDraw
-from streamlit_drawable_canvas import st_canvas
+# 📸🎨🖌 Image-Processing
 
-st.set_page_config(page_title="Image Processing App", layout="wide")
+**Interactive Image Editor – Python project available as a Jupyter Notebook and a standalone .py file. Apply various filters, rotate, crop, remove objects, add text and emojis, and enhance images interactively within the notebook or as a web application.**
 
-st.title("🖼️ Image Processing App")
+🔗 **Web App:** [Try it Online!](https://image-processing5.streamlit.app/)  
 
-# ---------------------- Upload Image ----------------------
-uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
+---
 
-if uploaded_file is not None:
-    img = Image.open(uploaded_file)
+## 🗂 Project Structure
 
-    # Convert to RGB if not
-    if img.mode != "RGB":
-        img = img.convert("RGB")
+image-processing/ │-- app.py                # Streamlit web application │-- image-editing/ │   │-- editing.ipynb     # Jupyter Notebook with interactive image editing │   │-- images/           # Input images used in the notebook │   │-- RESULT/           # Output images from the notebook │-- requirements.txt      # Required dependencies │-- README.md             # Project documentation
 
-    st.image(img, caption="Current Image", use_container_width=True)
+---
 
-    # Convert to numpy for OpenCV filters
-    img_np = np.array(img)
+## 🛠 Features
 
-    # ---------------------- Filters ----------------------
-    st.subheader("🎨 Filters")
-    filter_type = st.selectbox("Choose a filter", ["None", "Grayscale", "Sepia", "Cartoon", "Sketch", "Blur", "Sharpen"])
+### 1. **Adjustments (⚙)**
+- **Brightness ☀:** Increase or decrease the brightness of the image.  
+- **Contrast 🎚:** Adjust the contrast to enhance or soften the differences in light and dark areas.  
+- **Sharpness 🔪:** Make details sharper or softer.  
 
-    if filter_type == "Grayscale":
-        gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-        img_np = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+### 2. **Filters & Effects (🎨)**
+- **Grayscale:** Convert image to black & white while preserving intensity.  
+- **Sepia:** Apply a warm brown tone for a vintage look.  
+- **Blur:** Smooth the image using Gaussian blur; intensity adjustable.  
+- **Cartoon / Cartoon Colorful:** Transform images into cartoon-style or colorful cartoon with edge enhancement.  
+- **HDR Enhanced:** Enhance local contrast using CLAHE (Contrast Limited Adaptive Histogram Equalization).  
 
-    elif filter_type == "Sepia":
-        sepia_filter = np.array([[0.272, 0.534, 0.131],
-                                 [0.349, 0.686, 0.168],
-                                 [0.393, 0.769, 0.189]])
-        img_np = cv2.transform(img_np, sepia_filter)
-        img_np = np.clip(img_np, 0, 255)
+### 3. **Editing Tools (🛠)**
+- **Denoise 🧹:** Reduce noise in the image using non-local means denoising.  
+- **Rotate 90° 🔄:** Rotate image 90 degrees clockwise.  
+- **Crop ✂:** Select a region to crop interactively using drag box.  
+- **Add Text 📝:** Add custom text anywhere on the image with adjustable font size and color.  
 
-    elif filter_type == "Cartoon":
-        gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-        gray = cv2.medianBlur(gray, 5)
-        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                      cv2.THRESH_BINARY, 9, 9)
-        color = cv2.bilateralFilter(img_np, 9, 250, 250)
-        img_np = cv2.bitwise_and(color, color, mask=edges)
+### 4. **Interactive Notebook (Jupyter)**
+The notebook `editing.ipynb` includes step-by-step image editing:
+- **Adjust Hue & Saturation:** Modify color tones for artistic effects.  
+- **CLAHE Color:** Improve local contrast while preserving color.  
+- **Brightness & Contrast:** Enhance image lighting.  
+- **Denoise:** Remove noise for cleaner images.  
+- **Resize:** Change image size while maintaining aspect ratio.  
+- **Filters:** Apply different filters by selecting filter numbers.  
+- **Rotate, Flip, Crop:** Interactive control over rotation angles, flipping directions (vertical/horizontal), and cropping region.  
+- **Gamma Correction:** Adjust luminance of the image for tonal correction.  
+- **Oil Painting Effect, Watercolor, Vintage Effect:** Artistic stylizations.  
+- **Face Beautification:** Smooth skin tones and enhance facial features.  
+- **Object Removal:** Erase objects interactively using freehand mask.  
 
-    elif filter_type == "Sketch":
-        gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-        inv = 255 - gray
-        blur = cv2.GaussianBlur(inv, (21, 21), 0)
-        sketch = cv2.divide(gray, 255 - blur, scale=256)
-        img_np = cv2.cvtColor(sketch, cv2.COLOR_GRAY2RGB)
+### 5. **Undo & Download**
+- **Undo ↩:** Step back to previous editing stage.  
+- **Download 💾:** Save the final edited image as PNG.  
 
-    elif filter_type == "Blur":
-        img_np = cv2.GaussianBlur(img_np, (15, 15), 0)
+---
 
-    elif filter_type == "Sharpen":
-        kernel = np.array([[0, -1, 0],
-                           [-1, 5, -1],
-                           [0, -1, 0]])
-        img_np = cv2.filter2D(img_np, -1, kernel)
+## 🚀 How to Use the Web App
 
-    img_filtered = Image.fromarray(np.uint8(img_np))
-    st.image(img_filtered, caption="After Filter", use_container_width=True)
+1. Open the [Web App](https://image-processing5.streamlit.app/).  
+2. Upload an image (JPEG or PNG).  
+3. Use **Adjustments** sliders to change brightness, contrast, and sharpness.  
+4. Select **Filters & Effects** and adjust their intensity.  
+5. Enable **Editing Tools** to crop, rotate, add text, or remove objects.  
+6. Preview the changes in real-time.  
+7. Click **Apply** for each operation to make changes permanent.  
+8. Use **Undo ↩** to revert any previous step.  
+9. Click **Download 💾** to save the final image.  
 
-    # ---------------------- Add Text ----------------------
-    st.subheader("✍️ Add Text")
-    user_text = st.text_input("Enter text to add")
-    if user_text:
-        img_text = img_filtered.copy()
-        draw = ImageDraw.Draw(img_text)
+---
 
-        # Use truetype font for larger text size
-        try:
-            font = ImageFont.truetype("arial.ttf", 60)  # Large size
-        except:
-            font = ImageFont.load_default()
+## 💻 Requirements
 
-        draw.text((50, 50), user_text, fill="red", font=font)
-        st.image(img_text, caption="With Text", use_container_width=True)
+All required libraries are listed in `requirements.txt`. Main packages include:
+- `streamlit`
+- `Pillow`
+- `numpy`
+- `opencv-python`
+- `streamlit_cropper`
+- `streamlit_drawable_canvas`  
 
-    # ---------------------- Remove Tool ----------------------
-    st.subheader("🩹 Object Removal (Draw on area to remove)")
-    canvas_result = st_canvas(
-        fill_color="rgba(255,255,255,0)",
-        stroke_width=30,
-        stroke_color="white",
-        background_image=img_filtered.convert("RGB"),
-        background_color="white",  # Prevent black screen online
-        update_streamlit=True,
-        height=img_filtered.height,
-        width=img_filtered.width,
-        drawing_mode="freedraw",
-        key="canvas",
-    )
+---
 
-    if canvas_result.image_data is not None:
-        mask = np.array(canvas_result.image_data)[:, :, 3]
-        mask = cv2.resize(mask, (img_filtered.width, img_filtered.height), interpolation=cv2.INTER_NEAREST)
-        mask = (mask > 0).astype(np.uint8) * 255
+## 🎯 Purpose
 
-        inpainted = cv2.inpaint(np.array(img_filtered), mask, 7, cv2.INPAINT_TELEA)
-        img_inpainted = Image.fromarray(inpainted)
-        st.image(img_inpainted, caption="After Removal", use_container_width=True)
+This project demonstrates how to build an **interactive image editor** in Python using both Jupyter Notebook and Streamlit web application. Users can experiment with real-time image adjustments, filters, and editing tools without writing any code.  
 
-else:
-    st.warning("⚠️ Please upload an image to start")
+---
+
+## 📌 Notes
+
+- The notebook `editing.ipynb` is fully interactive and ideal for experimentation.  
+- The `images` folder contains sample input images.  
+- The `RESULT` folder shows the outputs generated by the notebook.  
+- The web app provides a user-friendly interface for all functionalities in the notebook.
