@@ -2,47 +2,62 @@
 
 "Interactive Image Editor – Python project available as a Jupyter Notebook and a standalone .py file. Apply various filters, rotate, crop, remove objects, and enhance images interactively within the notebook or as a web application."  
 
-🔗 [Try the Web App here](https://image-processing5.streamlit.app/)  
+🔗 [Try the Web App here](https://your-custom-link.com)  
 
 ---
 
 ## ✨ Features  
 
+This project comes in **two versions**:  
+
+---
+
 ### 📝 Notebook (image-editing/editing.ipynb)  
-The Jupyter Notebook contains step-by-step implementations of different image processing techniques using OpenCV and PIL. Each function demonstrates its effect clearly:  
+The Jupyter Notebook contains **step-by-step implementations** of image editing techniques using OpenCV and PIL.  
+Available functions:  
 
-1. 📏 **Resize** – change image dimensions while keeping proportions or setting custom width/height.  
-2. 🎨 **Filters** – apply predefined artistic filters.  
-3. 🧹 **Denoising** – remove noise and smooth images using OpenCV’s `fastNlMeansDenoisingColored`.  
-4. 🔆 **Brightness & Contrast** – adjust image lightness and contrast values numerically.  
-5. 🔄 **Rotate, Flip & Crop** – enter custom values (angles, flip axis, crop dimensions) for precise transformations.  
-6. 🌈 **Adjust Hue** – modify color tones by shifting hue values.  
-7. 💎 **Gamma Correction** – non-linear brightness adjustment to lighten or darken naturally.  
-8. ⚡ **CLAHE Color Equalization** – enhance local contrast and details using Contrast Limited Adaptive Histogram Equalization.  
-9. 🖌️ **Oil Painting Effect** – simulate brush-stroke style painting.  
-10. 💧 **Watercolor Effect** – create a smooth watercolor-like look.  
-11. 🕰️ **Vintage Effect** – add retro style tones to the image.  
-12. 😊 **Face Beautification** – smooth skin and enhance facial features for portraits.  
-13. 🧽 **Remove Objects** – erase unwanted areas by selecting regions and replacing them with surrounding pixels.  
+1. 📏 **Resize** – change image dimensions with custom width/height.  
+2. 🎨 **Filters** – apply different artistic filters.  
+3. 🧹 **Denoising** – smooth and remove unwanted noise.  
+4. 🔆 **Brightness & Contrast** – adjust image tone numerically.  
+5. 🔄 **Rotate, Flip & Crop** – transform image orientation or crop by coordinates.  
+6. 🌈 **Adjust Hue** – shift color tones across the spectrum.  
+7. 💎 **Gamma Correction** – nonlinear brightness enhancement.  
+8. ⚡ **CLAHE Color Equalization** – boost local contrast with adaptive histogram equalization.  
+9. 🖌️ **Oil Painting Effect** – simulate a painted look with brush strokes.  
+10. 💧 **Watercolor Effect** – smooth watercolor-like effect.  
+11. 🕰️ **Vintage Effect** – apply retro tones.  
+12. 😊 **Face Beautification** – smooth skin and enhance portrait quality.  
+13. 🧽 **Remove Objects** – erase selected regions by filling from nearby pixels.  
 
-All results from the notebook are saved into the `RESULT/` folder.  
+👉 Results are automatically saved in the `RESULT/` folder.  
 
 ---
 
 ### 🌐 Web Application (app.py)  
-The Streamlit web app provides an **interactive UI** for image editing with the following features:  
-- 📤 **Upload an Image** – import any photo.  
-- 📏 **Resize & Crop** – change dimensions or crop areas directly in the browser.  
-- 🔄 **Rotate & Flip** – adjust orientation instantly.  
-- 🎨 **Filters** – cartoon, vintage, oil painting, watercolor, and more.  
-- 🧹 **Denoising** – remove unwanted noise.  
-- 🔆 **Brightness & Contrast** – sliders to enhance or reduce tone.  
-- 🌈 **Adjust Hue & Saturation** – control colors dynamically.  
-- 💎 **Gamma Correction** – improve lighting.  
-- ⚡ **CLAHE Equalization** – enhance contrast in specific regions.  
-- 😊 **Face Beautification** – one-click beautify option.  
-- 🧽 **Remove Objects** – paint over objects to erase them.  
-- ✍️ **Add Text & Emojis** – personalize images with captions or fun icons (web-only feature).  
+The Streamlit app provides a **user-friendly interface** with real-time editing.  
+
+**Editing Tools**  
+- 📤 Upload images (`.jpg`, `.jpeg`, `.png`).  
+- ✂ **Crop** images interactively (drag box).  
+- 🔄 **Rotate 90°** with one click.  
+- 🧹 **Denoise** noisy images.  
+- 📝 **Add Text** with custom size, color, and positioning.  
+- ↩ **Undo** history of edits.  
+- 💾 **Download** final image.  
+
+**Adjustments (via sliders)**  
+- ☀ **Brightness**  
+- 🎚 **Contrast**  
+- 🔪 **Sharpness**  
+
+**Filters & Effects**  
+- ⚫ **Grayscale**  
+- 🤎 **Sepia**  
+- 💨 **Blur**  
+- 🎭 **Cartoon**  
+- 🌈 **Cartoon Colorful**  
+- ✨ **HDR Enhanced**  
 
 ---
 
@@ -56,8 +71,8 @@ image-processing/ │-- app.py                  # Streamlit web application │-
 
 ### ▶️ Notebook  
 1. Open `image-editing/editing.ipynb` in Jupyter Notebook.  
-2. Run the cells sequentially to apply transformations.  
-3. Input images are in `images/` and edited results will be saved in `RESULT/`.  
+2. Run cells sequentially to apply transformations.  
+3. Input images go in `images/`, results appear in `RESULT/`.  
 
 ### 🌐 Web App  
 1. Install the dependencies:  
@@ -69,10 +84,7 @@ image-processing/ │-- app.py                  # Streamlit web application │-
 streamlit run app.py
 
 
-3. Open the provided local URL in your browser.
-
-
-4. Upload an image and start editing interactively.
+3. Open the local URL in your browser to start editing interactively.
 
 
 
@@ -81,20 +93,12 @@ streamlit run app.py
 
 🎯 Use Cases
 
-Quick photo enhancements and artistic effects.
+Quick artistic photo edits.
 
 Learning and experimenting with OpenCV & PIL functions.
 
-Foundation for more advanced AI-powered editing projects.
+Interactive image editor with both coding (Notebook) and no-code (Web App) options.
 
 
 
 ---
-
-📌 Notes
-
-Input samples are available in the images/ folder.
-
-Notebook results are stored in RESULT/.
-
-Web app provides a beginner-friendly interface for editing without coding.
