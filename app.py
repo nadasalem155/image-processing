@@ -55,7 +55,10 @@ def hdr_enhanced_filter(img):
 
 def pencil_sketch_color_filter(img):
     img_array = np.array(img)
-    # Ensure image is in correct format and size
+    # Ensure image is in RGB format (3 channels)
+    if len(img_array.shape) == 2 or img_array.shape[2] == 1:
+        img_array = cv2.cvtColor(img_array, cv2.COLOR_GRAY2RGB)
+    # Ensure image size is valid
     if img_array.shape[0] < 10 or img_array.shape[1] < 10:
         img_array = cv2.resize(img_array, (max(img_array.shape[1], 10), max(img_array.shape[0], 10)))
     try:
