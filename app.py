@@ -183,26 +183,14 @@ if uploaded_file:
                 cv_img2 = cv2.bitwise_not(cv_img2)
                 temp_img = Image.fromarray(cv2.cvtColor(cv_img2, cv2.COLOR_BGR2RGB))
             elif f == "Blur":
-                def blur_filter(img):
-                    img_array = np.array(img)
-                    blurred = cv2.GaussianBlur(img_array, (15, 15), 0)
-                     return Image.fromarray(blurred)
+                temp_img = blur_filter(temp_img)
             elif f == "Edge":
                 cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
                 gray = cv2.cvtColor(cv_img2, cv2.COLOR_BGR2GRAY)
                 edges = cv2.Canny(gray, 100, 200)
                 temp_img = Image.fromarray(cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB))
             elif f == "Cartoon":
-                def cartoon_filter(img):
-                    img_array = np.array(img)
-                    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-                    gray = cv2.medianBlur(gray, 5)
-                    edges = cv2.adaptiveThreshold(gray, 255,
-                                  cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 9, 9)
-                    color = cv2.bilateralFilter(img_array, 9, 250, 250)
-                    cartoon = cv2.bitwise_and(color, color, mask=edges)
-                    return Image.fromarray(cartoon)       
+                temp_img = cartoon_filter(temp_img)
             elif f == "Emboss":
                 cv_img2 = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
                 kernel = np.array([[-2, -1, 0],
@@ -247,29 +235,13 @@ if uploaded_file:
                 cv_img2 = cv2.convertScaleAbs(cv_img2, alpha=1.5, beta=30)
                 temp_img = Image.fromarray(cv2.cvtColor(cv_img2, cv2.COLOR_BGR2RGB))
             elif f == "Cartoon Colorful":
-                def cartoon_colorful_filter(img):
-                   img_array = np.array(img)
-                   color = cv2.bilateralFilter(img_array, 9, 300, 300)
-                   hsv = cv2.cvtColor(color, cv2.COLOR_RGB2HSV)
-                   hsv[...,1] = cv2.add(hsv[...,1], 50) 
-                   hsv[...,2] = cv2.add(hsv[...,2], 30)  
-                   colorful = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-                   return Image.fromarray(colorful)
+                temp_img = cartoon_colorful_filter(temp_img)
             elif f == "HDR Enhanced":
-                def hdr_enhanced_filter(img):
-                   img_array = np.array(img)
-                   lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
-                   l, a, b = cv2.split(lab)
-                   clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-                   l = clahe.apply(l)
-                   lab = cv2.merge((l,a,b))
-                   enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
-                   return Image.fromarray(enhanced)
+                temp_img = hdr_enhanced_filter(temp_img)
             elif f == "Pencil Sketch Color":
-                def pencil_sketch_color_filter(img):
-                    img_array = np.array(img)
-                    color, sketch = cv2.pencilSketch(img_array, sigma_s=60, sigma_r=0.07, shade_factor=0.05)
-                    return Image.fromarray(color)
+                temp_img = pencil_sketch_color_filter(temp_img)
+
+        st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
 
         if st.button("Apply Filters 🎭"):
             img = temp_img.copy()
