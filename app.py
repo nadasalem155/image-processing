@@ -12,16 +12,33 @@ def cartoon_filter(img, intensity=1.0):
         return img
     img_array = np.array(img)
     
-    # Apply pyrMeanShiftFiltering for color segmentation (cartoonish flat areas)
-    shifted = cv2.pyrMeanShiftFiltering(img_array, sp=15, sr=30)  # sp and sr control the level of segmentation
+    def color_quantization(im, k):
+        data = np.float32(im).reshape((-1, 3))
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
+        ret, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
+        center = np.uint8(center)
+        result = center[label.flatten()]
+        result = result.reshape(im.shape)
+        return result
     
-    # Get edges using adaptive thresholding (black lines on white areas)
+    # Downsample for faster quantization
+    scale = 0.5
+    small = cv2.resize(img_array, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    
+    # Set k based on intensity: higher intensity, fewer colors (more cartoonish)
+    k = max(4, 16 - int(12 * intensity))
+    quantized_small = color_quantization(small, k)
+    quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_NEAREST)
+    
+    # Get edges
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    blurred = cv2.medianBlur(gray, 5)
-    edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 7, 7)  # White areas, black lines
+    blurred = cv2.medianBlur(gray, 7)
+    block_size = 9
+    c = 2 + int(3 * intensity)  # Adjust for stronger edges with higher intensity
+    edges = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, c)
     
-    # Combine: apply colors where mask is white, black lines where mask is black
-    cartoon = cv2.bitwise_and(shifted, shifted, mask=edges)
+    # Combine quantized colors with edges
+    cartoon = cv2.bitwise_and(quantized, quantized, mask=edges)
     
     # Blend with original based on intensity
     result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
@@ -30,36 +47,26 @@ def cartoon_filter(img, intensity=1.0):
 
 def cartoon_colorful_filter(img, intensity=1.0):
     img_array = np.array(img)
-    
-    # Lighter bilateral filter for natural smoothing
-    color = cv2.bilateralFilter(img_array, d=7, sigmaColor=150, sigmaSpace=150)
-    
-    # Mild HSV adjustment for colorful but natural boost
+    color = cv2.bilateralFilter(img_array, 9, 300, 300)  # Strong color smoothing
     hsv = cv2.cvtColor(color, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
-    s = cv2.add(s, int(30 * intensity))  # Milder saturation boost
+    s = cv2.add(s, int(50 * intensity))  # Adjustable saturation
     s = np.clip(s, 0, 255)
-    v = cv2.add(v, int(20 * intensity))  # Milder brightness boost
+    v = cv2.add(v, int(30 * intensity))  # Adjustable brightness
     v = np.clip(v, 0, 255)
     hsv = cv2.merge([h, s, v])
     colorful = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-    
-    # Softer edges with adaptive thresholding
+    # Add clear edges
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 3)  # Smaller blur for natural details
-    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 9, 5)  # Natural, smooth edges
-    edges = cv2.GaussianBlur(edges, (3, 3), 0)  # Light smoothing
-    # No invert needed: adaptive gives white areas, black lines
-    
-    # Combine with mask
+    gray = cv2.medianBlur(gray, 5)
+    edges = cv2.Canny(gray, 30, 100)  # Strong edges for ToonMe style
+    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=int(3 * intensity))  # Adjustable edge thickness
+    edges = cv2.GaussianBlur(edges, (3, 3), 0)  # Smooth edges
+    edges = cv2.bitwise_not(edges)  # Invert for black lines
     colorful = cv2.bitwise_and(colorful, colorful, mask=edges)
-    
-    # Subtle detail enhancement
-    colorful = cv2.detailEnhance(colorful, sigma_s=5 * intensity, sigma_r=0.1 * intensity)
-    
-    # Balanced blend with original for natural look
-    result = cv2.addWeighted(img_array, 0.6 + 0.4 * (1 - intensity), colorful, 0.4 * intensity, 0)
-    
+    colorful = cv2.detailEnhance(colorful, sigma_s=10 * intensity, sigma_r=0.15 * intensity)  # Adjustable detail enhancement
+    # Blend with original image based on intensity
+    result = cv2.addWeighted(img_array, 1 - intensity, colorful, intensity, 0)
     return Image.fromarray(result)
 
 def blur_filter(img, intensity=1.0):
