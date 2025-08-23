@@ -10,16 +10,18 @@ from streamlit_drawable_canvas import st_canvas
 def cartoon_filter(img):
     img_array = np.array(img)
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 3)  # Stronger blur for sharper edges
+    gray = cv2.medianBlur(gray, 7)  # Stronger blur to eliminate noise
     edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 7, 5)  # Sharper, thicker edges
-    color = cv2.bilateralFilter(img_array, 9, 100, 100)  # Higher color contrast
+                                  cv2.THRESH_BINARY, 15, 2)  # Smoother, continuous edges
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))  # Close gaps for continuous lines
+    edges = cv2.GaussianBlur(edges, (5, 5), 0)  # Smooth edges for comic-style lines
+    color = cv2.bilateralFilter(img_array, 9, 200, 200)  # Smoother colors
     cartoon = cv2.bitwise_and(color, color, mask=edges)
     return Image.fromarray(cartoon)
 
 def cartoon_colorful_filter(img):
     img_array = np.array(img)
-    color = cv2.bilateralFilter(img_array, 9, 100, 100)  # Stronger color contrast
+    color = cv2.bilateralFilter(img_array, 9, 200, 200)  # Smoother colors
     hsv = cv2.cvtColor(color, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
     s = cv2.add(s, 40)  # Balanced saturation boost
@@ -30,10 +32,12 @@ def cartoon_colorful_filter(img):
     colorful = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
     # Add stronger, smoother edges
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    gray = cv2.medianBlur(gray, 3)
+    gray = cv2.medianBlur(gray, 7)
     edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 7, 5)
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=3)  # Thicker, smoother edges
+                                  cv2.THRESH_BINARY, 15, 2)
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))  # Close gaps for continuous lines
+    edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=3)  # Thicker, smoother edges
+    edges = cv2.GaussianBlur(edges, (5, 5), 0)  # Smooth edges for comic-style lines
     colorful = cv2.bitwise_and(colorful, colorful, mask=edges)
     colorful = cv2.detailEnhance(colorful, sigma_s=10, sigma_r=0.15)  # Enhance details
     return Image.fromarray(colorful)
