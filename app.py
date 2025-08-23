@@ -11,17 +11,18 @@ def cartoon_filter(img):
     img_array = np.array(img)
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 5)  # Moderate blur for smooth details
-    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 7, 5)  # Clear, smooth edges
-    edges = cv2.GaussianBlur(edges, (3, 3), 0)  # Smooth edges for comic-like lines
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=2)  # Thicker lines
-    color = cv2.bilateralFilter(img_array, 9, 100, 100)  # Smooth colors
+    edges = cv2.Canny(gray, 50, 150)  # Strong, smooth edges like ToonMe
+    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=3)  # Thicker lines
+    edges = cv2.GaussianBlur(edges, (3, 3), 0)  # Smooth edges
+    edges = cv2.bitwise_not(edges)  # Invert for black lines
+    color = cv2.bilateralFilter(img_array, 9, 150, 150)  # Smooth, vibrant colors
     cartoon = cv2.bitwise_and(color, color, mask=edges)
+    cartoon = cv2.detailEnhance(cartoon, sigma_s=10, sigma_r=0.15)  # Enhance details
     return Image.fromarray(cartoon)
 
 def cartoon_colorful_filter(img):
     img_array = np.array(img)
-    color = cv2.bilateralFilter(img_array, 9, 300, 300)  # Stronger color smoothing
+    color = cv2.bilateralFilter(img_array, 9, 300, 300)  # Strong color smoothing
     hsv = cv2.cvtColor(color, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
     s = cv2.add(s, 50)  # Increase saturation
@@ -33,11 +34,12 @@ def cartoon_colorful_filter(img):
     # Add clear edges
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 5)
-    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 7, 5)
+    edges = cv2.Canny(gray, 50, 150)  # Strong edges for ToonMe style
     edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=3)  # Thicker edges
     edges = cv2.GaussianBlur(edges, (3, 3), 0)  # Smooth edges
+    edges = cv2.bitwise_not(edges)  # Invert for black lines
     colorful = cv2.bitwise_and(colorful, colorful, mask=edges)
+    colorful = cv2.detailEnhance(colorful, sigma_s=10, sigma_r=0.15)  # Enhance details
     return Image.fromarray(colorful)
 
 def blur_filter(img):
