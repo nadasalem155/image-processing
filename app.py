@@ -4,7 +4,6 @@ import numpy as np
 import cv2
 import io
 from streamlit_cropper import st_cropper
-from streamlit_drawable_canvas import st_canvas
 
 # ---- Filter Functions ----
 def cartoon_filter(img, intensity=1.0):
@@ -123,7 +122,7 @@ for f in filter_options:
     if f in apply_filters:
         filter_intensities[f] = st.sidebar.slider(
             f"Intensity of {f} (%)", 
-            0.0, 1.0, 0.5, 0.01,  # ← هنا التعديل الوحيد
+            0.0, 1.0, 0.5, 0.01,
             key=f"intensity_{f}"
         )
 
@@ -132,7 +131,6 @@ st.sidebar.header("🛠 Editing Tools")
 denoise = st.sidebar.checkbox("Denoise 🧹")
 rotate_90 = st.sidebar.checkbox("Rotate 90° 🔄")
 apply_crop = st.sidebar.checkbox("✂ Crop")
-apply_remove = st.sidebar.checkbox("🖌 Remove")
 apply_text = st.sidebar.checkbox("📝 Add Text")
 
 # ---- File uploader ----
@@ -162,31 +160,6 @@ if uploaded_file:
             st.session_state.base_image = img.copy()
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
-
-    if apply_remove:
-        st.write("🖌 Draw over the area you want to remove")
-        canvas_width, canvas_height = get_mobile_dimensions(img_png)
-        canvas_result = st_canvas(
-            fill_color="rgba(255,255,255,0)",
-            stroke_width=20,
-            stroke_color="white",
-            background_image=img_png,
-            update_streamlit=True,
-            height=canvas_height,
-            width=canvas_width,
-            drawing_mode="freedraw",
-            key="remove_canvas",
-        )
-        if st.button("Apply Remove"):
-            if canvas_result.image_data is not None:
-                mask = np.array(canvas_result.image_data)[:, :, 3]
-                mask = cv2.resize(mask, (img.width, img.height), interpolation=cv2.INTER_NEAREST)
-                cv_img = np.array(img)
-                inpainted = cv2.inpaint(cv_img, mask.astype(np.uint8), 3, cv2.INPAINT_TELEA)
-                img = Image.fromarray(inpainted)
-                st.session_state.base_image = img.copy()
-                st.session_state.history.append(img.copy())
-                st.success("Object removed!")
 
     if denoise:
         if st.button("Apply Denoise 🧹"):
