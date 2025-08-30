@@ -6,4 +6,5 @@ nltk==3.9.1
 spacy==3.8.7
 streamlit==1.36.0
 matplotlib==3.10.3
+opencv
 seaborn==0.13.2
