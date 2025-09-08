@@ -137,7 +137,7 @@ for f in filter_options:
 
 # ---- Sidebar: Editing Tools ----
 st.sidebar.header("🛠 Editing Tools")
-denoise_strength = st.sidebar.slider("Denoise Strength 🧹", 0.0, 1.0, 0.0, 0.01)
+denoise_strength = st.sidebar.slider("Denoise Strength 🧹", 0.0, 3.0, 0.0, 0.1)
 apply_denoise = st.sidebar.button("Apply Denoise 🧹")
 rotate_90 = st.sidebar.checkbox("Rotate 90° 🔄")
 apply_crop = st.sidebar.checkbox("✂ Crop")
@@ -171,13 +171,19 @@ if uploaded_file:
     # ---- Live Denoise Preview ----
     if denoise_strength > 0:
         cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
-        denoised = cv2.fastNlMeansDenoisingColored(
-            cv_img, None,
-            h=int(denoise_strength * 20),
-            hColor=int(denoise_strength * 20),
-            templateWindowSize=7,
-            searchWindowSize=21
-        )
+
+        if denoise_strength <= 2.0:  # الطريقة الأولى
+            denoised = cv2.fastNlMeansDenoisingColored(
+                cv_img, None,
+                h=int(denoise_strength * 20),
+                hColor=int(denoise_strength * 20),
+                templateWindowSize=7,
+                searchWindowSize=21
+            )
+        else:  # الطريقة الثانية
+            ksize = 5 if denoise_strength < 3.0 else 7
+            denoised = cv2.medianBlur(cv_img, ksize)
+
         preview_img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
 
     # ---- Apply Denoise ----
