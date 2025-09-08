@@ -27,25 +27,44 @@ def blur_filter(img, intensity=0.5):
     return img.filter(ImageFilter.GaussianBlur(radius))
 
 def cartoon_filter(img, intensity=0.5):
-    """Cartoon effect using OpenCV stylization."""
+    """Cartoon effect with edges + color quantization."""
     if intensity == 0:
         return img
     img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-    cartoon = cv2.stylization(img_cv, sigma_s=150, sigma_r=0.25)
+    # تنعيم الألوان مع الاحتفاظ بالحواف
+    color = cv2.bilateralFilter(img_cv, d=9, sigmaColor=250, sigmaSpace=250)
+    # استخراج الحواف
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = cv2.medianBlur(gray, 7)
+    edges = cv2.adaptiveThreshold(gray, 255,
+                                  cv2.ADAPTIVE_THRESH_MEAN_C,
+                                  cv2.THRESH_BINARY,
+                                  blockSize=9, C=9)
+    cartoon = cv2.bitwise_and(color, color, mask=edges)
     cartoon_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
     return Image.blend(img, cartoon_img, intensity)
 
 def cartoon_colorful_filter(img, intensity=0.5):
-    """Colorful cartoon style with boosted saturation."""
+    """Cartoon effect + boosted saturation."""
     if intensity == 0:
         return img
     img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-    cartoon = cv2.stylization(img_cv, sigma_s=150, sigma_r=0.25)
-    hsv = cv2.cvtColor(cartoon, cv2.COLOR_BGR2HSV).astype("float32")
+    # تنعيم الألوان
+    color = cv2.bilateralFilter(img_cv, d=9, sigmaColor=250, sigmaSpace=250)
+    # زيادة التشبع
+    hsv = cv2.cvtColor(color, cv2.COLOR_BGR2HSV).astype("float32")
     h, s, v = cv2.split(hsv)
-    s = np.clip(s * 1.5, 0, 255)  # boost saturation
+    s = np.clip(s * 1.5, 0, 255)
     hsv = cv2.merge([h, s, v])
-    colorful_cartoon = cv2.cvtColor(hsv.astype("uint8"), cv2.COLOR_HSV2BGR)
+    colorful = cv2.cvtColor(hsv.astype("uint8"), cv2.COLOR_HSV2BGR)
+    # استخراج الحواف
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = cv2.medianBlur(gray, 7)
+    edges = cv2.adaptiveThreshold(gray, 255,
+                                  cv2.ADAPTIVE_THRESH_MEAN_C,
+                                  cv2.THRESH_BINARY,
+                                  blockSize=9, C=9)
+    colorful_cartoon = cv2.bitwise_and(colorful, colorful, mask=edges)
     colorful_img = Image.fromarray(cv2.cvtColor(colorful_cartoon, cv2.COLOR_BGR2RGB))
     return Image.blend(img, colorful_img, intensity)
 
