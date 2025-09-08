@@ -1,12 +1,61 @@
+
 import streamlit as st
-from PIL import Image, ImageOps, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+from PIL import Image, ImageOps, ImageEnhance
 import numpy as np
 import cv2
 import io
 from streamlit_cropper import st_cropper
 
 # ---- Filter Functions ----
-# (keep your filter functions as they are)
+def grayscale_filter(img, intensity=1.0):
+    """Convert image to grayscale with intensity blend."""
+    gray = ImageOps.grayscale(img).convert("RGB")
+    return Image.blend(img, gray, intensity)
+
+def sepia_filter(img, intensity=1.0):
+    """Apply sepia effect with intensity."""
+    img_array = np.array(img, dtype=np.float32)
+    tr = 0.393 * img_array[:, :, 0] + 0.769 * img_array[:, :, 1] + 0.189 * img_array[:, :, 2]
+    tg = 0.349 * img_array[:, :, 0] + 0.686 * img_array[:, :, 1] + 0.168 * img_array[:, :, 2]
+    tb = 0.272 * img_array[:, :, 0] + 0.534 * img_array[:, :, 1] + 0.131 * img_array[:, :, 2]
+    sepia = np.stack([tr, tg, tb], axis=2).clip(0, 255).astype(np.uint8)
+    sepia_img = Image.fromarray(sepia)
+    return Image.blend(img, sepia_img, intensity)
+
+def blur_filter(img, intensity=0.5):
+    """Gaussian blur with variable intensity."""
+    radius = max(0, int(intensity * 10))
+    return img.filter(ImageFilter.GaussianBlur(radius))
+
+def cartoon_filter(img, intensity=0.5):
+    """Cartoon effect - edges + bilateral filter."""
+    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = cv2.medianBlur(gray, 7)
+    edges = cv2.adaptiveThreshold(gray, 255,
+                                  cv2.ADAPTIVE_THRESH_MEAN_C,
+                                  cv2.THRESH_BINARY, 9, 9)
+    color = cv2.bilateralFilter(img_cv, d=9, sigmaColor=250, sigmaSpace=250)
+    cartoon = cv2.bitwise_and(color, color, mask=edges)
+    cartoon_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
+    return Image.blend(img, cartoon_img, intensity)
+
+def cartoon_colorful_filter(img, intensity=0.5):
+    """Colorful cartoon style."""
+    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 100, 200)
+    color = cv2.bilateralFilter(img_cv, d=9, sigmaColor=200, sigmaSpace=200)
+    color[edges != 0] = [0, 0, 0]
+    colorful_cartoon = Image.fromarray(cv2.cvtColor(color, cv2.COLOR_BGR2RGB))
+    return Image.blend(img, colorful_cartoon, intensity)
+
+def hdr_enhanced_filter(img, intensity=0.5):
+    """HDR-like effect using detailEnhance."""
+    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    hdr = cv2.detailEnhance(img_cv, sigma_s=12, sigma_r=0.15)
+    hdr_img = Image.fromarray(cv2.cvtColor(hdr, cv2.COLOR_BGR2RGB))
+    return Image.blend(img, hdr_img, intensity)
 
 # ---- Page config ----
 st.set_page_config(page_title="📸🎨🖌 Image Editing App", layout="centered")
@@ -22,7 +71,7 @@ def get_mobile_dimensions(pil_img, max_width=350):
 st.sidebar.header("⚙ Adjustments")
 brightness = st.sidebar.slider("Brightness ☀", -1.0, 1.0, 0.0, 0.01)
 contrast = st.sidebar.slider("Contrast 🎚", -1.0, 1.0, 0.0, 0.01)
-sharpness = st.sidebar.slider("Sharpness 🔪", -1.0, 1.0, 0.0, 0.01)
+sharpness = st.sidebar.slider("Sharpness 🔪", -1.0, 2.0, 0.0, 0.01)
 
 # ---- Sidebar: Filters & Effects ----
 st.sidebar.header("🎨 Filters & Effects")
@@ -58,6 +107,7 @@ if uploaded_file:
         st.session_state.uploaded_file_name = uploaded_file.name
         st.session_state.history = [uploaded_image.copy()]
 
+    # start from base image every time
     img = st.session_state.base_image.copy()
     preview_img = img.copy()
 
@@ -74,18 +124,11 @@ if uploaded_file:
     # ---- Live Denoise Preview ----
     if denoise_strength > 0:
         cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
-        if denoise_strength > 2.5:
-            # Use median blur for strong salt & pepper noise
-            ksize = 3 if denoise_strength < 2.8 else 5
-            denoised = cv2.medianBlur(cv_img, ksize)
-        else:
-            # Use fastNlMeans for light noise
-            if denoise_strength <= 1:
-                scaled_strength = int(1 + denoise_strength * 15)
-            else:
-                scaled_strength = int(15 + (denoise_strength - 1) * 20)
+        if denoise_strength <= 2.5:
+            scaled_strength = int(1 + denoise_strength * 15)
             denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, scaled_strength, scaled_strength, 7, 21)
-
+        else:
+            denoised = cv2.medianBlur(cv_img, 5)
         preview_img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
 
     # ---- Apply Denoise ----
@@ -93,14 +136,6 @@ if uploaded_file:
         st.session_state.base_image = preview_img.copy()
         st.session_state.history.append(preview_img.copy())
         st.success("Denoise applied!")
-
-    # ---- Rotation ----
-    if rotate_90:
-        if st.button("Apply 90° Rotation 🔄"):
-            rotated = img.rotate(90, expand=True)
-            st.session_state.base_image = rotated.copy()
-            st.session_state.history.append(rotated.copy())
-            st.success("Rotation applied!")
 
     # ---- Filters ----
     temp_img = preview_img.copy()
@@ -126,11 +161,9 @@ if uploaded_file:
     temp_img = ImageEnhance.Sharpness(temp_img).enhance(1 + sharpness)
 
     st.session_state.edited_image = temp_img
-
     final_width, final_height = get_mobile_dimensions(img)
     st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=False, width=final_width)
 
-    # ---- Undo Button ----
     if st.button("↩ Undo"):
         if len(st.session_state.history) > 1:
             st.session_state.history.pop()
