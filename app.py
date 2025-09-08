@@ -177,24 +177,21 @@ if uploaded_file:
     if fast_denoise > 0 or smooth_denoise > 0:
         if st.button("Apply Denoise 🧹"):
             cv_img = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
-            if np.std(cv_img) < 1:
-                st.warning("No noise detected in the image!")
-            else:
-                if fast_denoise > 0:
-                    cv_img = cv2.fastNlMeansDenoisingColored(
-                        cv_img, None,
-                        h=int(fast_denoise * 20),
-                        hColor=int(fast_denoise * 20),
-                        templateWindowSize=7,
-                        searchWindowSize=21
-                    )
-                if smooth_denoise > 0:
-                    cv_img = cv2.medianBlur(cv_img, 5)
-                temp_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
-                img = temp_img.copy()
-                st.session_state.base_image = img.copy()
-                st.session_state.history.append(img.copy())
-                st.success("Noise removed!")
+            if fast_denoise > 0:
+                cv_img = cv2.fastNlMeansDenoisingColored(
+                    cv_img, None,
+                    h=int(fast_denoise * 20),
+                    hColor=int(fast_denoise * 20),
+                    templateWindowSize=7,
+                    searchWindowSize=21
+                )
+            if smooth_denoise > 0:
+                cv_img = cv2.medianBlur(cv_img, 5)
+            temp_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+            img = temp_img.copy()
+            st.session_state.base_image = img.copy()
+            st.session_state.history.append(img.copy())
+            st.success("Denoise applied!")
 
     # ---- Filters & Adjustments ----
     if apply_filters:
