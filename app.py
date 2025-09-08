@@ -100,7 +100,7 @@ def get_mobile_dimensions(pil_img, max_width=350):
 # ---- Sidebar: Adjustments ----
 st.sidebar.header("⚙ Adjustments")
 brightness = st.sidebar.slider("Brightness ☀", -1.0, 1.0, 0.0, 0.01)
-contrast = st.sidebar.slider("Contrast 🎚", -1.0, 1.0, 0.0, 0.01)
+contrast = st.sidebar.slider("Contrast ", -1.0, 1.0, 0.0, 0.01)
 sharpness = st.sidebar.slider("Sharpness 🔪", -1.0, 3.0, 0.0, 0.01)
 
 # ---- Sidebar: Filters & Effects ----
