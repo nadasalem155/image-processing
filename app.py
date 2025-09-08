@@ -27,46 +27,44 @@ def blur_filter(img, intensity=0.5):
     return img.filter(ImageFilter.GaussianBlur(radius))
 
 def cartoon_filter(img, intensity=0.5):
-    """Cartoon effect with edges + color quantization."""
+    """Cartoon effect using bilateral filter + edges with blend."""
     if intensity == 0:
         return img
-    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-    # تنعيم الألوان مع الاحتفاظ بالحواف
-    color = cv2.bilateralFilter(img_cv, d=9, sigmaColor=250, sigmaSpace=250)
-    # استخراج الحواف
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    img_array = np.array(img)
+    # Apply multiple bilateral filters for smooth effect
+    color = img_array.copy()
+    for _ in range(int(3 + intensity * 5)):
+        color = cv2.bilateralFilter(color, d=9, sigmaColor=75, sigmaSpace=75)
+
+    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 7)
     edges = cv2.adaptiveThreshold(gray, 255,
                                   cv2.ADAPTIVE_THRESH_MEAN_C,
                                   cv2.THRESH_BINARY,
-                                  blockSize=9, C=9)
-    cartoon = cv2.bitwise_and(color, color, mask=edges)
-    cartoon_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
-    return Image.blend(img, cartoon_img, intensity)
+                                  blockSize=9, C=2)
+    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
+    cartoon = cv2.bitwise_and(color, edges_colored)
+    result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
+    return Image.fromarray(result)
 
 def cartoon_colorful_filter(img, intensity=0.5):
-    """Cartoon effect + boosted saturation."""
+    """Full cartoon effect (no blending with original image)."""
     if intensity == 0:
         return img
-    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-    # تنعيم الألوان
-    color = cv2.bilateralFilter(img_cv, d=9, sigmaColor=250, sigmaSpace=250)
-    # زيادة التشبع
-    hsv = cv2.cvtColor(color, cv2.COLOR_BGR2HSV).astype("float32")
-    h, s, v = cv2.split(hsv)
-    s = np.clip(s * 1.5, 0, 255)
-    hsv = cv2.merge([h, s, v])
-    colorful = cv2.cvtColor(hsv.astype("uint8"), cv2.COLOR_HSV2BGR)
-    # استخراج الحواف
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    img_array = np.array(img)
+    color = img_array.copy()
+    for _ in range(int(3 + intensity * 5)):
+        color = cv2.bilateralFilter(color, d=9, sigmaColor=100, sigmaSpace=100)
+
+    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     gray = cv2.medianBlur(gray, 7)
     edges = cv2.adaptiveThreshold(gray, 255,
                                   cv2.ADAPTIVE_THRESH_MEAN_C,
                                   cv2.THRESH_BINARY,
-                                  blockSize=9, C=9)
-    colorful_cartoon = cv2.bitwise_and(colorful, colorful, mask=edges)
-    colorful_img = Image.fromarray(cv2.cvtColor(colorful_cartoon, cv2.COLOR_BGR2RGB))
-    return Image.blend(img, colorful_img, intensity)
+                                  blockSize=9, C=2)
+    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
+    cartoon_full = cv2.bitwise_and(color, edges_colored)
+    return Image.fromarray(cartoon_full)
 
 def hdr_enhanced_filter(img, intensity=0.5):
     """HDR-like effect using detailEnhance."""
