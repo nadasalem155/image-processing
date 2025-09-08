@@ -1,6 +1,5 @@
-
 import streamlit as st
-from PIL import Image, ImageOps, ImageEnhance
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 import numpy as np
 import cv2
 import io
@@ -28,27 +27,76 @@ def blur_filter(img, intensity=0.5):
     return img.filter(ImageFilter.GaussianBlur(radius))
 
 def cartoon_filter(img, intensity=0.5):
-    """Cartoon effect - edges + bilateral filter."""
-    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    """
+    Classic cartoon effect:
+    - smooth colors with mean-shift
+    - edge detection with adaptive threshold
+    - blend with original according to intensity
+    """
+    img_rgb = np.array(img)
+    img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+
+    sp = int(10 + intensity * 20)
+    sr = int(20 + intensity * 80)
+    smooth = cv2.pyrMeanShiftFiltering(img_bgr, sp, sr)
+
+    gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
     gray = cv2.medianBlur(gray, 7)
     edges = cv2.adaptiveThreshold(gray, 255,
                                   cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 9, 9)
-    color = cv2.bilateralFilter(img_cv, d=9, sigmaColor=250, sigmaSpace=250)
-    cartoon = cv2.bitwise_and(color, color, mask=edges)
-    cartoon_img = Image.fromarray(cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB))
-    return Image.blend(img, cartoon_img, intensity)
+                                  cv2.THRESH_BINARY,
+                                  blockSize=9,
+                                  C=2)
+    edges_inv = cv2.bitwise_not(edges)
+    color_masked = cv2.bitwise_and(smooth, smooth, mask=edges_inv)
+
+    if intensity > 0.6:
+        detail = cv2.detailEnhance(color_masked, sigma_s=10, sigma_r=0.15)
+    else:
+        detail = color_masked
+
+    detail_rgb = cv2.cvtColor(detail, cv2.COLOR_BGR2RGB)
+    result = cv2.addWeighted(img_rgb, 1.0 - intensity, detail_rgb, intensity, 0)
+    return Image.fromarray(result)
 
 def cartoon_colorful_filter(img, intensity=0.5):
-    """Colorful cartoon style."""
-    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    """
+    Colorful cartoon style:
+    - smoothing + posterization
+    - saturation boost
+    - thick edges + detail enhancement
+    """
+    img_rgb = np.array(img)
+    img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+
+    sp = int(8 + intensity * 24)
+    sr = int(20 + intensity * 100)
+    smooth = cv2.pyrMeanShiftFiltering(img_bgr, sp, sr)
+
+    levels = int(24 - intensity * 20)
+    levels = max(4, min(24, levels))
+    step = max(1, 256 // levels)
+    poster = (smooth // step) * step
+
+    hsv = cv2.cvtColor(poster, cv2.COLOR_BGR2HSV).astype(np.float32)
+    hsv[..., 1] = hsv[..., 1] * (1.0 + 0.8 * intensity)
+    hsv[..., 2] = hsv[..., 2] * (1.0 + 0.25 * intensity)
+    hsv[..., 1:] = np.clip(hsv[..., 1:], 0, 255)
+    color_boost = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+
+    gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 100, 200)
-    color = cv2.bilateralFilter(img_cv, d=9, sigmaColor=200, sigmaSpace=200)
-    color[edges != 0] = [0, 0, 0]
-    colorful_cartoon = Image.fromarray(cv2.cvtColor(color, cv2.COLOR_BGR2RGB))
-    return Image.blend(img, colorful_cartoon, intensity)
+    k = max(1, int(1 + intensity * 3))
+    kernel = np.ones((k, k), np.uint8)
+    edges = cv2.dilate(edges, kernel, iterations=1)
+    edges_inv = cv2.bitwise_not(edges)
+
+    color_masked = cv2.bitwise_and(color_boost, color_boost, mask=edges_inv)
+    color_masked = cv2.detailEnhance(color_masked, sigma_s=10, sigma_r=0.15 + 0.1 * intensity)
+
+    color_rgb = cv2.cvtColor(color_masked, cv2.COLOR_BGR2RGB)
+    result = cv2.addWeighted(img_rgb, 1.0 - intensity, color_rgb, intensity, 0)
+    return Image.fromarray(result)
 
 def hdr_enhanced_filter(img, intensity=0.5):
     """HDR-like effect using detailEnhance."""
