@@ -196,7 +196,7 @@ if uploaded_file:
                 st.session_state.history.append(img.copy())
                 st.success("Noise removed!")
 
-    # ---- Filters ----
+    # ---- Filters & Adjustments ----
     if apply_filters:
         for f in apply_filters:
             intensity = filter_intensities.get(f, 1.0)
@@ -212,6 +212,11 @@ if uploaded_file:
                 temp_img = cartoon_colorful_filter(temp_img, intensity)
             elif f == "HDR Enhanced":
                 temp_img = hdr_enhanced_filter(temp_img, intensity)
+
+        # Apply adjustments after filters
+        temp_img = ImageEnhance.Brightness(temp_img).enhance(1 + brightness)
+        temp_img = ImageEnhance.Contrast(temp_img).enhance(1 + contrast)
+        temp_img = ImageEnhance.Sharpness(temp_img).enhance(1 + sharpness)
 
         st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
         if st.button("Apply Filters 🎭"):
@@ -245,10 +250,11 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Text applied!")
 
-    # ---- Adjustments ----
-    temp_img = ImageEnhance.Brightness(temp_img).enhance(1 + brightness)
-    temp_img = ImageEnhance.Contrast(temp_img).enhance(1 + contrast)
-    temp_img = ImageEnhance.Sharpness(temp_img).enhance(1 + sharpness)
+    # Apply adjustments if no filters are selected
+    if not apply_filters:
+        temp_img = ImageEnhance.Brightness(temp_img).enhance(1 + brightness)
+        temp_img = ImageEnhance.Contrast(temp_img).enhance(1 + contrast)
+        temp_img = ImageEnhance.Sharpness(temp_img).enhance(1 + sharpness)
 
     st.session_state.edited_image = temp_img
     st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=False, width=final_width)
