@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageOps, ImageEnhance, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 import numpy as np
 import cv2
 import io
@@ -38,8 +38,7 @@ def cartoon_filter(img, intensity=0.5):
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
         _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
         center = np.uint8(center)
-        result = center[label.flatten()]
-        return result.reshape(im.shape)
+        return center[label.flatten()].reshape(im.shape)
 
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -69,8 +68,7 @@ def cartoon_colorful_filter(img, intensity=0.5):
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
         _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
         center = np.uint8(center)
-        result = center[label.flatten()]
-        return result.reshape(im.shape)
+        return center[label.flatten()].reshape(im.shape)
 
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -78,7 +76,6 @@ def cartoon_colorful_filter(img, intensity=0.5):
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_LINEAR)
 
-    # Boost saturation
     hsv = cv2.cvtColor(quantized, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
     s = np.clip(s * (1.3 + 0.7 * intensity), 0, 255)
@@ -114,9 +111,9 @@ def get_mobile_dimensions(pil_img, max_width=350):
 
 # ---- Sidebar: Adjustments ----
 st.sidebar.header("⚙ Adjustments")
-brightness = st.sidebar.slider("Brightness ☀", 0.0, 2.0, 1.0, 0.01)
-contrast = st.sidebar.slider("Contrast 🎚", 0.0, 2.0, 1.0, 0.01)
-sharpness = st.sidebar.slider("Sharpness 🔪", 0.0, 5.0, 1.0, 0.01)
+brightness = st.sidebar.slider("Brightness ☀", -1.0, 1.0, 0.0, 0.01)
+contrast = st.sidebar.slider("Contrast 🎚", -1.0, 1.0, 0.0, 0.01)
+sharpness = st.sidebar.slider("Sharpness 🔪", -1.0, 3.0, 0.0, 0.01)
 
 # ---- Sidebar: Filters & Effects ----
 st.sidebar.header("🎨 Filters & Effects")
@@ -133,7 +130,8 @@ for f in filter_options:
 
 # ---- Sidebar: Editing Tools ----
 st.sidebar.header("🛠 Editing Tools")
-denoise = st.sidebar.checkbox("Denoise 🧹")
+fast_denoise = st.sidebar.slider("Fast Denoise 🟢 (0–2)", 0.0, 2.0, 0.0, 0.1)
+smooth_denoise = st.sidebar.slider("Smooth Denoise 🔵 (0–1)", 0.0, 1.0, 0.0, 0.1)
 rotate_90 = st.sidebar.checkbox("Rotate 90° 🔄")
 apply_crop = st.sidebar.checkbox("✂ Crop")
 apply_text = st.sidebar.checkbox("📝 Add Text")
@@ -143,7 +141,6 @@ uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     uploaded_image = Image.open(uploaded_file).convert("RGB")
-
     if ("base_image" not in st.session_state) or ("uploaded_file_name" not in st.session_state) or (st.session_state.uploaded_file_name != uploaded_file.name):
         st.session_state.base_image = uploaded_image.copy()
         st.session_state.edited_image = uploaded_image.copy()
@@ -151,7 +148,7 @@ if uploaded_file:
         st.session_state.history = [uploaded_image.copy()]
 
     img = st.session_state.base_image.copy()
-    final_width, final_height = get_mobile_dimensions(img)
+    preview_img = img.copy()
 
     # ---- Crop ----
     if apply_crop:
@@ -163,26 +160,27 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
 
-    # ---- Rotate ----
-    if rotate_90:
-        if st.button("Apply 90° Rotation 🔄"):
-            img = img.rotate(90, expand=True)
-            st.session_state.base_image = img.copy()
-            st.session_state.history.append(img.copy())
-            st.success("Rotation applied!")
+    # ---- Apply Denoise ----
+    cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
 
-    # ---- Denoise ----
-    if denoise:
-        if st.button("Apply Denoise 🧹"):
-            cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, 10, 10, 7, 21)
-            img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
-            st.session_state.base_image = img.copy()
-            st.session_state.history.append(img.copy())
-            st.success("Noise removed!")
+    if fast_denoise > 0:
+        denoised = cv2.fastNlMeansDenoisingColored(
+            cv_img, None,
+            h=int(fast_denoise * 20),
+            hColor=int(fast_denoise * 20),
+            templateWindowSize=7,
+            searchWindowSize=21
+        )
+        cv_img = denoised
 
-    # ---- Apply Filters ----
-    temp_img = img.copy()
+    if smooth_denoise > 0:
+        denoised = cv2.medianBlur(cv_img, 5)
+        cv_img = denoised
+
+    preview_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+
+    # ---- Filters ----
+    temp_img = preview_img.copy()
     if apply_filters:
         for f in apply_filters:
             intensity = filter_intensities.get(f, 1.0)
@@ -200,31 +198,12 @@ if uploaded_file:
                 temp_img = hdr_enhanced_filter(temp_img, intensity)
 
     # ---- Adjustments ----
-    temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
-    temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
-    temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
-
-    # ---- Add Text ----
-    if apply_text:
-        st.write("📝 Add Text")
-        text_input = st.text_input("Enter your text", "Hello!")
-        text_size = st.slider("Text Size 🔠", 50, 500, 100)
-        text_color = st.color_picker("Text Color 🎨", "#FF0000")
-        box_data = st_cropper(temp_img, realtime_update=True, box_color="blue", aspect_ratio=None, return_type="box")
-        if st.button("Apply Text"):
-            draw = ImageDraw.Draw(temp_img)
-            try:
-                font = ImageFont.truetype("arial.ttf", text_size)
-            except:
-                font = ImageFont.load_default()
-            left = box_data['left']
-            top = box_data['top']
-            draw.text((left, top), text_input, fill=text_color, font=font)
-            st.session_state.base_image = temp_img.copy()
-            st.session_state.history.append(temp_img.copy())
-            st.success("Text applied!")
+    temp_img = ImageEnhance.Brightness(temp_img).enhance(1 + brightness)
+    temp_img = ImageEnhance.Contrast(temp_img).enhance(1 + contrast)
+    temp_img = ImageEnhance.Sharpness(temp_img).enhance(1 + sharpness)
 
     st.session_state.edited_image = temp_img
+    final_width, final_height = get_mobile_dimensions(img)
     st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=False, width=final_width)
 
     # ---- Undo ----
@@ -237,8 +216,7 @@ if uploaded_file:
         else:
             st.warning("No more steps to undo!")
 
-    # ---- Download ----
     buf = io.BytesIO()
     st.session_state.edited_image.save(buf, format="PNG")
     st.download_button("💾 Download Edited Image", data=buf.getvalue(),
-                       file_name="edited_image.png", mime="image/png") 
+                       file_name="edited_image.png", mime="image/png")
