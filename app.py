@@ -230,4 +230,9 @@ if uploaded_file:
             st.session_state.edited_image = st.session_state.base_image.copy()
             st.success("Undo applied!")
         else:
-            st.warning("No more
+            st.warning("No more steps to undo!")
+
+    buf = io.BytesIO()
+    st.session_state.edited_image.save(buf, format="PNG")
+    st.download_button("💾 Download Edited Image", data=buf.getvalue(),
+                       file_name="edited_image.png", mime="image/png")
