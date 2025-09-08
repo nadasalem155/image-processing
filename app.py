@@ -7,12 +7,10 @@ from streamlit_cropper import st_cropper
 
 # ---- Filter Functions ----
 def grayscale_filter(img, intensity=1.0):
-    """Convert image to grayscale with intensity blending."""
     gray = ImageOps.grayscale(img).convert("RGB")
     return Image.blend(img, gray, intensity)
 
 def sepia_filter(img, intensity=1.0):
-    """Apply sepia effect with given intensity."""
     img_array = np.array(img, dtype=np.float32)
     tr = 0.393 * img_array[:, :, 0] + 0.769 * img_array[:, :, 1] + 0.189 * img_array[:, :, 2]
     tg = 0.349 * img_array[:, :, 0] + 0.686 * img_array[:, :, 1] + 0.168 * img_array[:, :, 2]
@@ -22,30 +20,24 @@ def sepia_filter(img, intensity=1.0):
     return Image.blend(img, sepia_img, intensity)
 
 def blur_filter(img, intensity=0.5):
-    """Apply Gaussian blur with variable intensity."""
     radius = max(0, int(intensity * 10))
     return img.filter(ImageFilter.GaussianBlur(radius))
 
 def cartoon_filter(img, intensity=0.5):
-    """Cartoon effect using color quantization and edge detection."""
-    if intensity == 0:
-        return img
+    if intensity == 0: return img
     img_array = np.array(img)
     smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=50, sigmaSpace=50)
-
     def color_quantization(im, k):
         data = np.float32(im).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
         _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
         center = np.uint8(center)
         return center[label.flatten()].reshape(im.shape)
-
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     k = max(6, 16 - int(12 * intensity))
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_LINEAR)
-
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     blurred = cv2.medianBlur(gray, 7)
     edges = cv2.adaptiveThreshold(blurred, 255,
@@ -53,35 +45,28 @@ def cartoon_filter(img, intensity=0.5):
                                   cv2.THRESH_BINARY,
                                   blockSize=9, C=2)
     cartoon = cv2.bitwise_and(quantized, quantized, mask=edges)
-    result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
-    return Image.fromarray(result)
+    return Image.fromarray(cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0))
 
 def cartoon_colorful_filter(img, intensity=0.5):
-    """Cartoon effect with enhanced colors and smoothing."""
-    if intensity == 0:
-        return img
+    if intensity == 0: return img
     img_array = np.array(img)
     smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=50, sigmaSpace=50)
-
     def color_quantization(im, k):
         data = np.float32(im).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
         _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
         center = np.uint8(center)
         return center[label.flatten()].reshape(im.shape)
-
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     k = max(6, 16 - int(12 * intensity))
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_LINEAR)
-
     hsv = cv2.cvtColor(quantized, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
     s = np.clip(s * (1.3 + 0.7 * intensity), 0, 255)
     hsv = cv2.merge([h, s.astype(np.uint8), v])
     colorful_quantized = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     blurred = cv2.medianBlur(gray, 7)
     edges = cv2.adaptiveThreshold(blurred, 255,
@@ -89,11 +74,9 @@ def cartoon_colorful_filter(img, intensity=0.5):
                                   cv2.THRESH_BINARY,
                                   blockSize=9, C=2)
     cartoon = cv2.bitwise_and(colorful_quantized, colorful_quantized, mask=edges)
-    result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
-    return Image.fromarray(result)
+    return Image.fromarray(cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0))
 
 def hdr_enhanced_filter(img, intensity=0.5):
-    """Apply HDR-like enhancement using detailEnhance."""
     img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
     hdr = cv2.detailEnhance(img_cv, sigma_s=12, sigma_r=0.15)
     hdr_img = Image.fromarray(cv2.cvtColor(hdr, cv2.COLOR_BGR2RGB))
@@ -135,6 +118,8 @@ smooth_denoise = st.sidebar.slider("Smooth Denoise 🔵 (0–1)", 0.0, 1.0, 0.0,
 rotate_90 = st.sidebar.checkbox("Rotate 90° 🔄")
 apply_crop = st.sidebar.checkbox("✂ Crop")
 apply_text = st.sidebar.checkbox("📝 Add Text")
+apply_denoise_btn = st.sidebar.button("Apply Denoise 🧹")
+apply_filter_btn = st.sidebar.button("Apply Filters 🎭")
 
 # ---- File uploader ----
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
@@ -150,6 +135,10 @@ if uploaded_file:
     img = st.session_state.base_image.copy()
     preview_img = img.copy()
 
+    # ---- Rotate ----
+    if rotate_90:
+        preview_img = preview_img.rotate(-90, expand=True)
+
     # ---- Crop ----
     if apply_crop:
         st.write("✂ Drag the box to crop the image")
@@ -161,27 +150,26 @@ if uploaded_file:
             st.success("Crop applied!")
 
     # ---- Apply Denoise ----
-    cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
+    if apply_denoise_btn:
+        cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
+        if fast_denoise > 0:
+            cv_img = cv2.fastNlMeansDenoisingColored(
+                cv_img, None,
+                h=int(fast_denoise * 20),
+                hColor=int(fast_denoise * 20),
+                templateWindowSize=7,
+                searchWindowSize=21
+            )
+        if smooth_denoise > 0:
+            cv_img = cv2.medianBlur(cv_img, 5)
+        preview_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+        st.session_state.base_image = preview_img.copy()
+        st.session_state.history.append(preview_img.copy())
+        st.success("Denoise applied!")
 
-    if fast_denoise > 0:
-        denoised = cv2.fastNlMeansDenoisingColored(
-            cv_img, None,
-            h=int(fast_denoise * 20),
-            hColor=int(fast_denoise * 20),
-            templateWindowSize=7,
-            searchWindowSize=21
-        )
-        cv_img = denoised
-
-    if smooth_denoise > 0:
-        denoised = cv2.medianBlur(cv_img, 5)
-        cv_img = denoised
-
-    preview_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
-
-    # ---- Filters ----
-    temp_img = preview_img.copy()
-    if apply_filters:
+    # ---- Apply Filters ----
+    if apply_filter_btn and apply_filters:
+        temp_img = preview_img.copy()
         for f in apply_filters:
             intensity = filter_intensities.get(f, 1.0)
             if f == "Grayscale":
@@ -196,13 +184,17 @@ if uploaded_file:
                 temp_img = cartoon_colorful_filter(temp_img, intensity)
             elif f == "HDR Enhanced":
                 temp_img = hdr_enhanced_filter(temp_img, intensity)
+        st.session_state.edited_image = temp_img
+        st.session_state.base_image = temp_img.copy()
+        st.session_state.history.append(temp_img.copy())
+        st.success("Filters applied!")
 
     # ---- Adjustments ----
-    temp_img = ImageEnhance.Brightness(temp_img).enhance(1 + brightness)
+    temp_img = ImageEnhance.Brightness(st.session_state.edited_image).enhance(1 + brightness)
     temp_img = ImageEnhance.Contrast(temp_img).enhance(1 + contrast)
     temp_img = ImageEnhance.Sharpness(temp_img).enhance(1 + sharpness)
-
     st.session_state.edited_image = temp_img
+
     final_width, final_height = get_mobile_dimensions(img)
     st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=False, width=final_width)
 
