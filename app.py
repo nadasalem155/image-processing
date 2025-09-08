@@ -7,12 +7,12 @@ from streamlit_cropper import st_cropper
 
 # ---- Filter Functions ----
 def grayscale_filter(img, intensity=1.0):
-    """Convert image to grayscale with intensity blend."""
+    """Convert image to grayscale with intensity blending."""
     gray = ImageOps.grayscale(img).convert("RGB")
     return Image.blend(img, gray, intensity)
 
 def sepia_filter(img, intensity=1.0):
-    """Apply sepia effect with intensity."""
+    """Apply sepia effect with given intensity."""
     img_array = np.array(img, dtype=np.float32)
     tr = 0.393 * img_array[:, :, 0] + 0.769 * img_array[:, :, 1] + 0.189 * img_array[:, :, 2]
     tg = 0.349 * img_array[:, :, 0] + 0.686 * img_array[:, :, 1] + 0.168 * img_array[:, :, 2]
@@ -22,20 +22,20 @@ def sepia_filter(img, intensity=1.0):
     return Image.blend(img, sepia_img, intensity)
 
 def blur_filter(img, intensity=0.5):
-    """Gaussian blur with variable intensity."""
+    """Apply Gaussian blur with variable intensity."""
     radius = max(0, int(intensity * 10))
     return img.filter(ImageFilter.GaussianBlur(radius))
 
 def cartoon_filter(img, intensity=0.5):
-    """Cartoon effect using color quantization + edges with blend."""
+    """Cartoon effect using color quantization and edge detection."""
     if intensity == 0:
         return img
     img_array = np.array(img)
-
-    # تحسين الصورة قبل k-means
+    # Pre-smooth image before k-means
     smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=50, sigmaSpace=50)
 
     def color_quantization(im, k):
+        """Quantize colors using k-means clustering."""
         data = np.float32(im).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
         _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
@@ -45,7 +45,7 @@ def cartoon_filter(img, intensity=0.5):
 
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-    k = max(6, 16 - int(12 * intensity))  # عدد الألوان أقل حاجة 6
+    k = max(6, 16 - int(12 * intensity))
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_LINEAR)
 
@@ -60,14 +60,14 @@ def cartoon_filter(img, intensity=0.5):
     return Image.fromarray(result)
 
 def cartoon_colorful_filter(img, intensity=0.5):
-    """Cartoon effect + more saturated colors with smoothing."""
+    """Cartoon effect with enhanced colors and smoothing."""
     if intensity == 0:
         return img
     img_array = np.array(img)
-
     smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=50, sigmaSpace=50)
 
     def color_quantization(im, k):
+        """Quantize colors using k-means clustering."""
         data = np.float32(im).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
         _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
@@ -81,7 +81,7 @@ def cartoon_colorful_filter(img, intensity=0.5):
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_LINEAR)
 
-    # boost saturation
+    # Boost saturation
     hsv = cv2.cvtColor(quantized, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
     s = np.clip(s * (1.3 + 0.7 * intensity), 0, 255)
@@ -99,7 +99,7 @@ def cartoon_colorful_filter(img, intensity=0.5):
     return Image.fromarray(result)
 
 def hdr_enhanced_filter(img, intensity=0.5):
-    """HDR-like effect using detailEnhance."""
+    """Apply HDR-like enhancement using detailEnhance."""
     img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
     hdr = cv2.detailEnhance(img_cv, sigma_s=12, sigma_r=0.15)
     hdr_img = Image.fromarray(cv2.cvtColor(hdr, cv2.COLOR_BGR2RGB))
@@ -110,6 +110,7 @@ st.set_page_config(page_title="📸🎨🖌 Image Editing App", layout="centered
 st.title("📸🎨🖌 Image Editing App – Easy & Fun Photo Editing")
 
 def get_mobile_dimensions(pil_img, max_width=350):
+    """Calculate image dimensions to fit mobile display."""
     aspect_ratio = pil_img.height / pil_img.width
     width = min(pil_img.width, max_width)
     height = int(width * aspect_ratio)
@@ -125,7 +126,6 @@ sharpness = st.sidebar.slider("Sharpness 🔪", -1.0, 2.0, 0.0, 0.01)
 st.sidebar.header("🎨 Filters & Effects")
 filter_options = ["Grayscale", "Sepia", "Blur", "Cartoon", "Cartoon Colorful", "HDR Enhanced"]
 apply_filters = st.sidebar.multiselect("Filters 🎭", filter_options)
-
 filter_intensities = {}
 for f in filter_options:
     if f in apply_filters:
@@ -137,7 +137,8 @@ for f in filter_options:
 
 # ---- Sidebar: Editing Tools ----
 st.sidebar.header("🛠 Editing Tools")
-denoise_strength = st.sidebar.slider("Denoise Strength 🧹", 0.0, 3.0, 0.0, 0.1)
+fast_denoise = st.sidebar.slider("Fast Denoise 🟢 (0–2)", 0.0, 2.0, 0.0, 0.1)
+smooth_denoise = st.sidebar.slider("Smooth Denoise 🔵 (0–1)", 0.0, 1.0, 0.0, 0.1)
 apply_denoise = st.sidebar.button("Apply Denoise 🧹")
 rotate_90 = st.sidebar.checkbox("Rotate 90° 🔄")
 apply_crop = st.sidebar.checkbox("✂ Crop")
@@ -148,8 +149,8 @@ uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     uploaded_image = Image.open(uploaded_file).convert("RGB")
-
     if ("base_image" not in st.session_state) or ("uploaded_file_name" not in st.session_state) or (st.session_state.uploaded_file_name != uploaded_file.name):
+        # Initialize session state
         st.session_state.base_image = uploaded_image.copy()
         st.session_state.edited_image = uploaded_image.copy()
         st.session_state.uploaded_file_name = uploaded_file.name
@@ -168,26 +169,28 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
 
-    # ---- Live Denoise Preview ----
-    if denoise_strength > 0:
-        cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
-
-        if denoise_strength <= 2.0:  # الطريقة الأولى
-            denoised = cv2.fastNlMeansDenoisingColored(
-                cv_img, None,
-                h=int(denoise_strength * 20),
-                hColor=int(denoise_strength * 20),
-                templateWindowSize=7,
-                searchWindowSize=21
-            )
-        else:  # الطريقة الثانية
-            ksize = 5 if denoise_strength < 3.0 else 7
-            denoised = cv2.medianBlur(cv_img, ksize)
-
-        preview_img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
-
     # ---- Apply Denoise ----
-    if apply_denoise and denoise_strength > 0:
+    cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
+
+    # Fast denoise using fastNlMeansDenoisingColored
+    if fast_denoise > 0:
+        denoised = cv2.fastNlMeansDenoisingColored(
+            cv_img, None,
+            h=int(fast_denoise * 20),
+            hColor=int(fast_denoise * 20),
+            templateWindowSize=7,
+            searchWindowSize=21
+        )
+        cv_img = denoised
+
+    # Smooth denoise using median blur
+    if smooth_denoise > 0:
+        denoised = cv2.medianBlur(cv_img, 5)
+        cv_img = denoised
+
+    preview_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+
+    if apply_denoise:
         st.session_state.base_image = preview_img.copy()
         st.session_state.history.append(preview_img.copy())
         st.success("Denoise applied!")
@@ -219,6 +222,7 @@ if uploaded_file:
     final_width, final_height = get_mobile_dimensions(img)
     st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=False, width=final_width)
 
+    # ---- Undo Functionality ----
     if st.button("↩ Undo"):
         if len(st.session_state.history) > 1:
             st.session_state.history.pop()
@@ -226,9 +230,4 @@ if uploaded_file:
             st.session_state.edited_image = st.session_state.base_image.copy()
             st.success("Undo applied!")
         else:
-            st.warning("No more steps to undo!")
-
-    buf = io.BytesIO()
-    st.session_state.edited_image.save(buf, format="PNG")
-    st.download_button("💾 Download Edited Image", data=buf.getvalue(),
-                       file_name="edited_image.png", mime="image/png")
+            st.warning("No more
