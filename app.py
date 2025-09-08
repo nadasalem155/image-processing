@@ -32,6 +32,9 @@ def cartoon_filter(img, intensity=0.5):
         return img
     img_array = np.array(img)
 
+    # تحسين الصورة قبل k-means
+    smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=50, sigmaSpace=50)
+
     def color_quantization(im, k):
         data = np.float32(im).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
@@ -41,10 +44,10 @@ def cartoon_filter(img, intensity=0.5):
         return result.reshape(im.shape)
 
     scale = 0.5
-    small = cv2.resize(img_array, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-    k = max(4, 16 - int(12 * intensity))
+    small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    k = max(6, 16 - int(12 * intensity))  # عدد الألوان أقل حاجة 6
     quantized_small = color_quantization(small, k)
-    quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_NEAREST)
+    quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_LINEAR)
 
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     blurred = cv2.medianBlur(gray, 7)
@@ -57,10 +60,12 @@ def cartoon_filter(img, intensity=0.5):
     return Image.fromarray(result)
 
 def cartoon_colorful_filter(img, intensity=0.5):
-    """Cartoon effect + more saturated colors."""
+    """Cartoon effect + more saturated colors with smoothing."""
     if intensity == 0:
         return img
     img_array = np.array(img)
+
+    smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=50, sigmaSpace=50)
 
     def color_quantization(im, k):
         data = np.float32(im).reshape((-1, 3))
@@ -71,10 +76,10 @@ def cartoon_colorful_filter(img, intensity=0.5):
         return result.reshape(im.shape)
 
     scale = 0.5
-    small = cv2.resize(img_array, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-    k = max(4, 16 - int(12 * intensity))
+    small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    k = max(6, 16 - int(12 * intensity))
     quantized_small = color_quantization(small, k)
-    quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_NEAREST)
+    quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_LINEAR)
 
     # boost saturation
     hsv = cv2.cvtColor(quantized, cv2.COLOR_RGB2HSV)
