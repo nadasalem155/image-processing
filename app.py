@@ -10,7 +10,7 @@ def cartoon_filter(img, intensity=1.0):
     if intensity == 0:
         return img
     img_array = np.array(img)
-    
+
     def color_quantization(im, k):
         data = np.float32(im).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
@@ -19,13 +19,13 @@ def cartoon_filter(img, intensity=1.0):
         result = center[label.flatten()]
         result = result.reshape(im.shape)
         return result
-    
+
     scale = 0.5
     small = cv2.resize(img_array, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     k = max(4, 16 - int(12 * intensity))
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_NEAREST)
-    
+
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
     blurred = cv2.medianBlur(gray, 7)
     block_size = 9
@@ -138,7 +138,7 @@ uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     uploaded_image = Image.open(uploaded_file).convert("RGB")
-    
+
     if ("base_image" not in st.session_state) or ("uploaded_file_name" not in st.session_state) or (st.session_state.uploaded_file_name != uploaded_file.name):
         st.session_state.base_image = uploaded_image.copy()
         st.session_state.edited_image = uploaded_image.copy()
@@ -152,6 +152,7 @@ if uploaded_file:
     img_png = Image.open(buf)
     final_width, final_height = get_mobile_dimensions(img)
 
+    # ---- Crop ----
     if apply_crop:
         st.write("✂ Drag the box to crop the image")
         cropped_img = st_cropper(img_png, realtime_update=True, box_color="red", aspect_ratio=None)
@@ -161,6 +162,7 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
 
+    # ---- Denoise ----
     if denoise:
         if st.button("Apply Denoise 🧹"):
             cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
@@ -173,6 +175,7 @@ if uploaded_file:
                 st.session_state.history.append(img.copy())
                 st.success("Noise removed!")
 
+    # ---- Rotate ----
     if rotate_90:
         if st.button("Apply 90° Rotation 🔄"):
             img = img.rotate(90, expand=True)
@@ -197,13 +200,19 @@ if uploaded_file:
             elif f == "HDR Enhanced":
                 temp_img = hdr_enhanced_filter(temp_img, intensity)
 
-        temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
-        temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
-        if sharpness > 2.0:
-            temp_array = np.array(temp_img)
-            temp_array = cv2.detailEnhance(temp_array, sigma_s=10 * (sharpness - 2.0) / 3.0, sigma_r=0.15)
-            temp_img = Image.fromarray(temp_array)
-        temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
+        # ✅ Apply adjustments only if values are different from default
+        if brightness != 1.0:
+            temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
+
+        if contrast != 1.0:
+            temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
+
+        if sharpness != 1.0:
+            if sharpness > 2.0:
+                temp_array = np.array(temp_img)
+                temp_array = cv2.detailEnhance(temp_array, sigma_s=10 * (sharpness - 2.0) / 3.0, sigma_r=0.15)
+                temp_img = Image.fromarray(temp_array)
+            temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
 
         st.image(temp_img, caption="Filter Preview", use_column_width=False, width=final_width)
 
@@ -213,6 +222,7 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Filters applied!")
 
+    # ---- Add Text ----
     if apply_text:
         st.write("📝 Add Text (choose size & color above the image)")
         text_input = st.text_input("Enter your text", "Hello!")
@@ -237,14 +247,21 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Text applied!")
 
+    # ✅ Apply adjustments to final output only if values are changed
     temp_img = st.session_state.base_image.copy()
-    temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
-    temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
-    if sharpness > 2.0:
-        temp_array = np.array(temp_img)
-        temp_array = cv2.detailEnhance(temp_array, sigma_s=10 * (sharpness - 2.0) / 3.0, sigma_r=0.15)
-        temp_img = Image.fromarray(temp_array)
-    temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
+    if brightness != 1.0:
+        temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
+
+    if contrast != 1.0:
+        temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
+
+    if sharpness != 1.0:
+        if sharpness > 2.0:
+            temp_array = np.array(temp_img)
+            temp_array = cv2.detailEnhance(temp_array, sigma_s=10 * (sharpness - 2.0) / 3.0, sigma_r=0.15)
+            temp_img = Image.fromarray(temp_array)
+        temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
+
     st.session_state.edited_image = temp_img
 
     st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=False, width=final_width)
