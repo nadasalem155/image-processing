@@ -27,12 +27,12 @@ def blur_filter(img, intensity=0.5):
     return img.filter(ImageFilter.GaussianBlur(radius))
 
 def cartoon_filter(img, intensity=0.5):
-    """Cartoon effect with enhanced color quantization and softer edges."""
+    """Cartoon effect with strong color quantization and no harsh edges."""
     if intensity == 0:
         return img
     img_array = np.array(img)
-    # Use stronger bilateral filter for smoother results
-    smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=75, sigmaSpace=75)
+    # Stronger bilateral filter for smoother results
+    smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=100, sigmaSpace=100)
 
     def color_quantization(im, k):
         data = np.float32(im).reshape((-1, 3))
@@ -44,29 +44,22 @@ def cartoon_filter(img, intensity=0.5):
     # Reduce scale for faster processing, use INTER_CUBIC for smoother resizing
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    # Reduce number of colors for stronger cartoon effect
-    k = max(4, 12 - int(10 * intensity))
+    # Stronger color reduction for cartoon effect
+    k = max(3, 10 - int(8 * intensity))
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_CUBIC)
 
-    # Softer edge detection with Canny instead of adaptiveThreshold
-    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    blurred = cv2.medianBlur(gray, 7)
-    edges = cv2.Canny(blurred, 50, 150)
-    # Light dilation to soften edges
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=1)
-    edges = cv2.bitwise_not(edges)  # Invert to avoid black lines
-    cartoon = cv2.bitwise_and(quantized, quantized, mask=edges)
-    result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
+    # Blend with original image without edge detection
+    result = cv2.addWeighted(img_array, 1 - intensity, quantized, intensity, 0)
     return Image.fromarray(result)
 
 def cartoon_colorful_filter(img, intensity=0.5):
-    """Cartoon effect with enhanced colors and softer edges."""
+    """Cartoon effect with enhanced colors and no harsh edges."""
     if intensity == 0:
         return img
     img_array = np.array(img)
-    # Use stronger bilateral filter for smoother results
-    smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=75, sigmaSpace=75)
+    # Stronger bilateral filter for smoother results
+    smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=100, sigmaSpace=100)
 
     def color_quantization(im, k):
         data = np.float32(im).reshape((-1, 3))
@@ -78,28 +71,22 @@ def cartoon_colorful_filter(img, intensity=0.5):
     # Reduce scale for faster processing, use INTER_CUBIC for smoother resizing
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    # Reduce number of colors for stronger cartoon effect
-    k = max(4, 12 - int(10 * intensity))
+    # Stronger color reduction for cartoon effect
+    k = max(3, 10 - int(8 * intensity))
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_CUBIC)
 
     # Enhance colors in HSV space
     hsv = cv2.cvtColor(quantized, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
-    s = np.clip(s * (1.5 + 0.8 * intensity), 0, 255)  # Stronger saturation boost
-    v = np.clip(v * (1.2 + 0.3 * intensity), 0, 255)  # Slight brightness boost
-    hsv = cv2.merge([h, s.astype(np.uint8), v])
+    s = np.clip(s * (1.5 + 0.8 * intensity), 0, 255).astype(np.uint8)
+    v = np.clip(v * (1.2 + 0.3 * intensity), 0, 255).astype(np.uint8)
+    h = h.astype(np.uint8)  # Ensure h is also uint8
+    hsv = cv2.merge([h, s, v])
     colorful_quantized = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 
-    # Softer edge detection with Canny
-    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-    blurred = cv2.medianBlur(gray, 7)
-    edges = cv2.Canny(blurred, 50, 150)
-    # Light dilation to soften edges
-    edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=1)
-    edges = cv2.bitwise_not(edges)  # Invert to avoid black lines
-    cartoon = cv2.bitwise_and(colorful_quantized, colorful_quantized, mask=edges)
-    result = cv2.addWeighted(img_array, 1 - intensity, cartoon, intensity, 0)
+    # Blend with original image without edge detection
+    result = cv2.addWeighted(img_array, 1 - intensity, colorful_quantized, intensity, 0)
     return Image.fromarray(result)
 
 def hdr_enhanced_filter(img, intensity=0.5):
