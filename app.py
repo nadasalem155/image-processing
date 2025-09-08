@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageOps, ImageEnhance, ImageFilter
+from PIL import Image, ImageOps, ImageEnhance, ImageDraw, ImageFont, ImageFilter
 import numpy as np
 import cv2
 import io
@@ -31,11 +31,9 @@ def cartoon_filter(img, intensity=0.5):
     if intensity == 0:
         return img
     img_array = np.array(img)
-    # Pre-smooth image before k-means
     smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=50, sigmaSpace=50)
 
     def color_quantization(im, k):
-        """Quantize colors using k-means clustering."""
         data = np.float32(im).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
         _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
@@ -67,7 +65,6 @@ def cartoon_colorful_filter(img, intensity=0.5):
     smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=50, sigmaSpace=50)
 
     def color_quantization(im, k):
-        """Quantize colors using k-means clustering."""
         data = np.float32(im).reshape((-1, 3))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 0.001)
         _, label, center = cv2.kmeans(data, k, None, criteria, 5, cv2.KMEANS_RANDOM_CENTERS)
@@ -110,7 +107,6 @@ st.set_page_config(page_title="📸🎨🖌 Image Editing App", layout="centered
 st.title("📸🎨🖌 Image Editing App – Easy & Fun Photo Editing")
 
 def get_mobile_dimensions(pil_img, max_width=350):
-    """Calculate image dimensions to fit mobile display."""
     aspect_ratio = pil_img.height / pil_img.width
     width = min(pil_img.width, max_width)
     height = int(width * aspect_ratio)
@@ -118,9 +114,9 @@ def get_mobile_dimensions(pil_img, max_width=350):
 
 # ---- Sidebar: Adjustments ----
 st.sidebar.header("⚙ Adjustments")
-brightness = st.sidebar.slider("Brightness ☀", -1.0, 1.0, 0.0, 0.01)
-contrast = st.sidebar.slider("Contrast 🎚", -1.0, 1.0, 0.0, 0.01)
-sharpness = st.sidebar.slider("Sharpness 🔪", -1.0, 2.0, 0.0, 0.01)
+brightness = st.sidebar.slider("Brightness ☀", 0.0, 2.0, 1.0, 0.01)
+contrast = st.sidebar.slider("Contrast 🎚", 0.0, 2.0, 1.0, 0.01)
+sharpness = st.sidebar.slider("Sharpness 🔪", 0.0, 5.0, 1.0, 0.01)
 
 # ---- Sidebar: Filters & Effects ----
 st.sidebar.header("🎨 Filters & Effects")
@@ -137,9 +133,7 @@ for f in filter_options:
 
 # ---- Sidebar: Editing Tools ----
 st.sidebar.header("🛠 Editing Tools")
-fast_denoise = st.sidebar.slider("Fast Denoise 🟢 (0–2)", 0.0, 2.0, 0.0, 0.1)
-smooth_denoise = st.sidebar.slider("Smooth Denoise 🔵 (0–1)", 0.0, 1.0, 0.0, 0.1)
-apply_denoise = st.sidebar.button("Apply Denoise 🧹")
+denoise = st.sidebar.checkbox("Denoise 🧹")
 rotate_90 = st.sidebar.checkbox("Rotate 90° 🔄")
 apply_crop = st.sidebar.checkbox("✂ Crop")
 apply_text = st.sidebar.checkbox("📝 Add Text")
@@ -149,15 +143,15 @@ uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     uploaded_image = Image.open(uploaded_file).convert("RGB")
+
     if ("base_image" not in st.session_state) or ("uploaded_file_name" not in st.session_state) or (st.session_state.uploaded_file_name != uploaded_file.name):
-        # Initialize session state
         st.session_state.base_image = uploaded_image.copy()
         st.session_state.edited_image = uploaded_image.copy()
         st.session_state.uploaded_file_name = uploaded_file.name
         st.session_state.history = [uploaded_image.copy()]
 
     img = st.session_state.base_image.copy()
-    preview_img = img.copy()
+    final_width, final_height = get_mobile_dimensions(img)
 
     # ---- Crop ----
     if apply_crop:
@@ -169,34 +163,26 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
 
-    # ---- Apply Denoise ----
-    cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
+    # ---- Rotate ----
+    if rotate_90:
+        if st.button("Apply 90° Rotation 🔄"):
+            img = img.rotate(90, expand=True)
+            st.session_state.base_image = img.copy()
+            st.session_state.history.append(img.copy())
+            st.success("Rotation applied!")
 
-    # Fast denoise using fastNlMeansDenoisingColored
-    if fast_denoise > 0:
-        denoised = cv2.fastNlMeansDenoisingColored(
-            cv_img, None,
-            h=int(fast_denoise * 20),
-            hColor=int(fast_denoise * 20),
-            templateWindowSize=7,
-            searchWindowSize=21
-        )
-        cv_img = denoised
+    # ---- Denoise ----
+    if denoise:
+        if st.button("Apply Denoise 🧹"):
+            cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+            denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, 10, 10, 7, 21)
+            img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
+            st.session_state.base_image = img.copy()
+            st.session_state.history.append(img.copy())
+            st.success("Noise removed!")
 
-    # Smooth denoise using median blur
-    if smooth_denoise > 0:
-        denoised = cv2.medianBlur(cv_img, 5)
-        cv_img = denoised
-
-    preview_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
-
-    if apply_denoise:
-        st.session_state.base_image = preview_img.copy()
-        st.session_state.history.append(preview_img.copy())
-        st.success("Denoise applied!")
-
-    # ---- Filters ----
-    temp_img = preview_img.copy()
+    # ---- Apply Filters ----
+    temp_img = img.copy()
     if apply_filters:
         for f in apply_filters:
             intensity = filter_intensities.get(f, 1.0)
@@ -214,15 +200,34 @@ if uploaded_file:
                 temp_img = hdr_enhanced_filter(temp_img, intensity)
 
     # ---- Adjustments ----
-    temp_img = ImageEnhance.Brightness(temp_img).enhance(1 + brightness)
-    temp_img = ImageEnhance.Contrast(temp_img).enhance(1 + contrast)
-    temp_img = ImageEnhance.Sharpness(temp_img).enhance(1 + sharpness)
+    temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
+    temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
+    temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
+
+    # ---- Add Text ----
+    if apply_text:
+        st.write("📝 Add Text")
+        text_input = st.text_input("Enter your text", "Hello!")
+        text_size = st.slider("Text Size 🔠", 50, 500, 100)
+        text_color = st.color_picker("Text Color 🎨", "#FF0000")
+        box_data = st_cropper(temp_img, realtime_update=True, box_color="blue", aspect_ratio=None, return_type="box")
+        if st.button("Apply Text"):
+            draw = ImageDraw.Draw(temp_img)
+            try:
+                font = ImageFont.truetype("arial.ttf", text_size)
+            except:
+                font = ImageFont.load_default()
+            left = box_data['left']
+            top = box_data['top']
+            draw.text((left, top), text_input, fill=text_color, font=font)
+            st.session_state.base_image = temp_img.copy()
+            st.session_state.history.append(temp_img.copy())
+            st.success("Text applied!")
 
     st.session_state.edited_image = temp_img
-    final_width, final_height = get_mobile_dimensions(img)
     st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=False, width=final_width)
 
-    # ---- Undo Functionality ----
+    # ---- Undo ----
     if st.button("↩ Undo"):
         if len(st.session_state.history) > 1:
             st.session_state.history.pop()
@@ -232,7 +237,8 @@ if uploaded_file:
         else:
             st.warning("No more steps to undo!")
 
+    # ---- Download ----
     buf = io.BytesIO()
     st.session_state.edited_image.save(buf, format="PNG")
     st.download_button("💾 Download Edited Image", data=buf.getvalue(),
-                       file_name="edited_image.png", mime="image/png")
+                       file_name="edited_image.png", mime="image/png") 
