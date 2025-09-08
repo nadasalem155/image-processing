@@ -108,7 +108,6 @@ def get_mobile_dimensions(pil_img, max_width=350):
 
 # ---- Sidebar: Adjustments ----
 st.sidebar.header("⚙ Adjustments")
-# ✅ Sliders start at 0, meaning no change relative to original image
 brightness = st.sidebar.slider("Brightness ☀", -1.0, 1.0, 0.0, 0.01)
 contrast = st.sidebar.slider("Contrast 🎚", -1.0, 1.0, 0.0, 0.01)
 sharpness = st.sidebar.slider("Sharpness 🔪", -2.0, 3.0, 0.0, 0.01)
@@ -129,7 +128,7 @@ for f in filter_options:
 
 # ---- Sidebar: Editing Tools ----
 st.sidebar.header("🛠 Editing Tools")
-denoise = st.sidebar.checkbox("Denoise 🧹")
+denoise_strength = st.sidebar.slider("Denoise Strength 🧹", 0, 30, 0, 1)
 rotate_90 = st.sidebar.checkbox("Rotate 90° 🔄")
 apply_crop = st.sidebar.checkbox("✂ Crop")
 apply_text = st.sidebar.checkbox("📝 Add Text")
@@ -162,17 +161,11 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
 
-    if denoise:
-        if st.button("Apply Denoise 🧹"):
-            cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            if np.std(cv_img) < 1:
-                st.warning("No noise detected in the image!")
-            else:
-                denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, 10, 10, 7, 21)
-                img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
-                st.session_state.base_image = img.copy()
-                st.session_state.history.append(img.copy())
-                st.success("Noise removed!")
+    if denoise_strength > 0:
+        cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+        denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, denoise_strength, denoise_strength, 7, 21)
+        img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
+        st.session_state.base_image = img.copy()
 
     if rotate_90:
         if st.button("Apply 90° Rotation 🔄"):
@@ -198,7 +191,6 @@ if uploaded_file:
             elif f == "HDR Enhanced":
                 temp_img = hdr_enhanced_filter(temp_img, intensity)
 
-        # ✅ Apply brightness/contrast/sharpness only if sliders moved from 0
         if brightness != 0.0:
             temp_img = ImageEnhance.Brightness(temp_img).enhance(1.0 + brightness)
         if contrast != 0.0:
@@ -217,30 +209,6 @@ if uploaded_file:
             st.session_state.base_image = img.copy()
             st.session_state.history.append(img.copy())
             st.success("Filters applied!")
-
-    if apply_text:
-        st.write("📝 Add Text (choose size & color above the image)")
-        text_input = st.text_input("Enter your text", "Hello!")
-        text_size = st.slider("Text Size 🔠", 50, 500, 100)
-        text_color = st.color_picker("Text Color 🎨", "#FF0000")
-        box_data = st_cropper(img_png, realtime_update=True, box_color="blue", aspect_ratio=None, return_type="box")
-        if st.button("Apply Text"):
-            draw = ImageDraw.Draw(img)
-            scaled_size = int(text_size * 1.5)
-            try:
-                font = ImageFont.truetype("arial.ttf", scaled_size)
-            except:
-                try:
-                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", scaled_size)
-                except:
-                    font = ImageFont.load_default()
-                    st.warning("No TrueType font found. Text size may be limited. Please place 'arial.ttf' or another .ttf font in the app directory.")
-            left = box_data['left']
-            top = box_data['top']
-            draw.text((left, top), text_input, fill=text_color, font=font)
-            st.session_state.base_image = img.copy()
-            st.session_state.history.append(img.copy())
-            st.success("Text applied!")
 
     temp_img = st.session_state.base_image.copy()
     if brightness != 0.0:
