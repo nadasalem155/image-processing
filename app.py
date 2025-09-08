@@ -6,7 +6,7 @@ import io
 from streamlit_cropper import st_cropper
 
 # ---- Filter Functions ----
-# (keep all your filter functions as you wroteهم)
+# (keep your filter functions as they are)
 
 # ---- Page config ----
 st.set_page_config(page_title="📸🎨🖌 Image Editing App", layout="centered")
@@ -20,9 +20,9 @@ def get_mobile_dimensions(pil_img, max_width=350):
 
 # ---- Sidebar: Adjustments ----
 st.sidebar.header("⚙ Adjustments")
-brightness = st.sidebar.slider("Brightness ☀", 0.0, 2.0, 1.0, 0.01)
-contrast = st.sidebar.slider("Contrast 🎚", 0.0, 2.0, 1.0, 0.01)
-sharpness = st.sidebar.slider("Sharpness 🔪", 0.0, 5.0, 1.0, 0.01)
+brightness = st.sidebar.slider("Brightness ☀", -1.0, 1.0, 0.0, 0.01)
+contrast = st.sidebar.slider("Contrast 🎚", -1.0, 1.0, 0.0, 0.01)
+sharpness = st.sidebar.slider("Sharpness 🔪", -1.0, 1.0, 0.0, 0.01)
 
 # ---- Sidebar: Filters & Effects ----
 st.sidebar.header("🎨 Filters & Effects")
@@ -58,7 +58,6 @@ if uploaded_file:
         st.session_state.uploaded_file_name = uploaded_file.name
         st.session_state.history = [uploaded_image.copy()]
 
-    # start from base image every time
     img = st.session_state.base_image.copy()
     preview_img = img.copy()
 
@@ -75,15 +74,21 @@ if uploaded_file:
     # ---- Live Denoise Preview ----
     if denoise_strength > 0:
         cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
-        # قوة التنضيف على حسب السلايدر
-        if denoise_strength <= 1:
-            scaled_strength = int(1 + denoise_strength * 15)
+        if denoise_strength > 2.5:
+            # Use median blur for strong salt & pepper noise
+            ksize = 3 if denoise_strength < 2.8 else 5
+            denoised = cv2.medianBlur(cv_img, ksize)
         else:
-            scaled_strength = int(15 + (denoise_strength - 1) * 20)
-        denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, scaled_strength, scaled_strength, 7, 21)
+            # Use fastNlMeans for light noise
+            if denoise_strength <= 1:
+                scaled_strength = int(1 + denoise_strength * 15)
+            else:
+                scaled_strength = int(15 + (denoise_strength - 1) * 20)
+            denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, scaled_strength, scaled_strength, 7, 21)
+
         preview_img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
 
-    # ---- Apply Denoise (commit to history) ----
+    # ---- Apply Denoise ----
     if apply_denoise and denoise_strength > 0:
         st.session_state.base_image = preview_img.copy()
         st.session_state.history.append(preview_img.copy())
@@ -116,13 +121,9 @@ if uploaded_file:
                 temp_img = hdr_enhanced_filter(temp_img, intensity)
 
     # ---- Adjustments ----
-    temp_img = ImageEnhance.Brightness(temp_img).enhance(brightness)
-    temp_img = ImageEnhance.Contrast(temp_img).enhance(contrast)
-    if sharpness > 2.0:
-        temp_array = np.array(temp_img)
-        temp_array = cv2.detailEnhance(temp_array, sigma_s=10 * (sharpness - 2.0) / 3.0, sigma_r=0.15)
-        temp_img = Image.fromarray(temp_array)
-    temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
+    temp_img = ImageEnhance.Brightness(temp_img).enhance(1 + brightness)
+    temp_img = ImageEnhance.Contrast(temp_img).enhance(1 + contrast)
+    temp_img = ImageEnhance.Sharpness(temp_img).enhance(1 + sharpness)
 
     st.session_state.edited_image = temp_img
 
