@@ -31,7 +31,6 @@ def cartoon_filter(img, intensity=0.5):
     if intensity == 0:
         return img
     img_array = np.array(img)
-    # Stronger bilateral filter for smoother results
     smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=100, sigmaSpace=100)
 
     def color_quantization(im, k):
@@ -41,15 +40,12 @@ def cartoon_filter(img, intensity=0.5):
         center = np.uint8(center)
         return center[label.flatten()].reshape(im.shape)
 
-    # Reduce scale for faster processing, use INTER_CUBIC for smoother resizing
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    # Stronger color reduction for cartoon effect
     k = max(3, 10 - int(8 * intensity))
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_CUBIC)
 
-    # Blend with original image without edge detection
     result = cv2.addWeighted(img_array, 1 - intensity, quantized, intensity, 0)
     return Image.fromarray(result)
 
@@ -58,7 +54,6 @@ def cartoon_colorful_filter(img, intensity=0.5):
     if intensity == 0:
         return img
     img_array = np.array(img)
-    # Stronger bilateral filter for smoother results
     smooth = cv2.bilateralFilter(img_array, d=5, sigmaColor=100, sigmaSpace=100)
 
     def color_quantization(im, k):
@@ -68,24 +63,20 @@ def cartoon_colorful_filter(img, intensity=0.5):
         center = np.uint8(center)
         return center[label.flatten()].reshape(im.shape)
 
-    # Reduce scale for faster processing, use INTER_CUBIC for smoother resizing
     scale = 0.5
     small = cv2.resize(smooth, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-    # Stronger color reduction for cartoon effect
     k = max(3, 10 - int(8 * intensity))
     quantized_small = color_quantization(small, k)
     quantized = cv2.resize(quantized_small, (img_array.shape[1], img_array.shape[0]), interpolation=cv2.INTER_CUBIC)
 
-    # Enhance colors in HSV space
     hsv = cv2.cvtColor(quantized, cv2.COLOR_RGB2HSV)
     h, s, v = cv2.split(hsv)
     s = np.clip(s * (1.5 + 0.8 * intensity), 0, 255).astype(np.uint8)
     v = np.clip(v * (1.2 + 0.3 * intensity), 0, 255).astype(np.uint8)
-    h = h.astype(np.uint8)  # Ensure h is also uint8
+    h = h.astype(np.uint8)
     hsv = cv2.merge([h, s, v])
     colorful_quantized = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 
-    # Blend with original image without edge detection
     result = cv2.addWeighted(img_array, 1 - intensity, colorful_quantized, intensity, 0)
     return Image.fromarray(result)
 
@@ -109,7 +100,7 @@ def get_mobile_dimensions(pil_img, max_width=350):
 # ---- Sidebar: Adjustments ----
 st.sidebar.header("⚙ Adjustments")
 brightness = st.sidebar.slider("Brightness ☀", -1.0, 1.0, 0.0, 0.01)
-contrast = st.sidebar.slider("Contrast ", -1.0, 1.0, 0.0, 0.01)
+contrast = st.sidebar.slider("Contrast 🎚", -1.0, 1.0, 0.0, 0.01)
 sharpness = st.sidebar.slider("Sharpness 🔪", -1.0, 3.0, 0.0, 0.01)
 
 # ---- Sidebar: Filters & Effects ----
@@ -231,26 +222,29 @@ if uploaded_file:
     if apply_text:
         st.write("📝 Add Text (choose size & color above the image)")
         text_input = st.text_input("Enter your text", "Hello!")
-        text_size = st.slider("Text Size 🔠", 50, 500, 100)
+        text_size = st.slider("Text Size 🔠", 0, 500, 100)
         text_color = st.color_picker("Text Color 🎨", "#FF0000")
         box_data = st_cropper(img_png, realtime_update=True, box_color="blue", aspect_ratio=None, return_type="box")
         if st.button("Apply Text"):
-            draw = ImageDraw.Draw(img)
-            scaled_size = int(text_size * 1.5)
-            try:
-                font = ImageFont.truetype("arial.ttf", scaled_size)
-            except:
+            if text_size == 0:
+                st.warning("Text size is 0. Please choose a size greater than 0 to apply text.")
+            else:
+                draw = ImageDraw.Draw(img)
+                scaled_size = int(text_size * 1.5)
                 try:
-                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", scaled_size)
+                    font = ImageFont.truetype("arial.ttf", scaled_size)
                 except:
-                    font = ImageFont.load_default()
-                    st.warning("No TrueType font found. Text size may be limited. Please place 'arial.ttf' or another .ttf font in the app directory.")
-            left = box_data['left']
-            top = box_data['top']
-            draw.text((left, top), text_input, fill=text_color, font=font)
-            st.session_state.base_image = img.copy()
-            st.session_state.history.append(img.copy())
-            st.success("Text applied!")
+                    try:
+                        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", scaled_size)
+                    except:
+                        font = ImageFont.load_default()
+                        st.warning("No TrueType font found. Text size may be limited. Please place 'arial.ttf' or another .ttf font in the app directory.")
+                left = box_data['left']
+                top = box_data['top']
+                draw.text((left, top), text_input, fill=text_color, font=font)
+                st.session_state.base_image = img.copy()
+                st.session_state.history.append(img.copy())
+                st.success("Text applied!")
 
     # Apply adjustments if no filters are selected
     if not apply_filters:
