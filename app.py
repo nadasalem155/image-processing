@@ -161,11 +161,11 @@ if uploaded_file:
             st.session_state.history.append(img.copy())
             st.success("Crop applied!")
 
+    # ✅ Apply denoise automatically based on slider value
     if denoise_strength > 0:
         cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
         denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, denoise_strength, denoise_strength, 7, 21)
         img = Image.fromarray(cv2.cvtColor(denoised, cv2.COLOR_BGR2RGB))
-        st.session_state.base_image = img.copy()
 
     if rotate_90:
         if st.button("Apply 90° Rotation 🔄"):
@@ -209,6 +209,30 @@ if uploaded_file:
             st.session_state.base_image = img.copy()
             st.session_state.history.append(img.copy())
             st.success("Filters applied!")
+
+    if apply_text:
+        st.write("📝 Add Text (choose size & color above the image)")
+        text_input = st.text_input("Enter your text", "Hello!")
+        text_size = st.slider("Text Size 🔠", 50, 500, 100)
+        text_color = st.color_picker("Text Color 🎨", "#FF0000")
+        box_data = st_cropper(img_png, realtime_update=True, box_color="blue", aspect_ratio=None, return_type="box")
+        if st.button("Apply Text"):
+            draw = ImageDraw.Draw(img)
+            scaled_size = int(text_size * 1.5)
+            try:
+                font = ImageFont.truetype("arial.ttf", scaled_size)
+            except:
+                try:
+                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", scaled_size)
+                except:
+                    font = ImageFont.load_default()
+                    st.warning("No TrueType font found. Text size may be limited. Please place 'arial.ttf' or another .ttf font in the app directory.")
+            left = box_data['left']
+            top = box_data['top']
+            draw.text((left, top), text_input, fill=text_color, font=font)
+            st.session_state.base_image = img.copy()
+            st.session_state.history.append(img.copy())
+            st.success("Text applied!")
 
     temp_img = st.session_state.base_image.copy()
     if brightness != 0.0:
