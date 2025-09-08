@@ -132,6 +132,7 @@ for f in filter_options:
 st.sidebar.header("🛠 Editing Tools")
 fast_denoise = st.sidebar.slider("Fast Denoise 🟢 (0–2)", 0.0, 2.0, 0.0, 0.1)
 smooth_denoise = st.sidebar.slider("Smooth Denoise 🔵 (0–1)", 0.0, 1.0, 0.0, 0.1)
+apply_denoise = st.sidebar.button("Apply Denoise 🧹")
 rotate_90 = st.sidebar.checkbox("Rotate 90° 🔄")
 apply_crop = st.sidebar.checkbox("✂ Crop")
 apply_text = st.sidebar.checkbox("📝 Add Text")
@@ -173,27 +174,34 @@ if uploaded_file:
             st.success("Rotation applied!")
 
     # ---- Apply Denoise ----
-    temp_img = img.copy()
-    if fast_denoise > 0 or smooth_denoise > 0:
-        if st.button("Apply Denoise 🧹"):
-            cv_img = cv2.cvtColor(np.array(temp_img), cv2.COLOR_RGB2BGR)
-            if fast_denoise > 0:
-                cv_img = cv2.fastNlMeansDenoisingColored(
-                    cv_img, None,
-                    h=int(fast_denoise * 20),
-                    hColor=int(fast_denoise * 20),
-                    templateWindowSize=7,
-                    searchWindowSize=21
-                )
-            if smooth_denoise > 0:
-                cv_img = cv2.medianBlur(cv_img, 5)
-            temp_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
-            img = temp_img.copy()
-            st.session_state.base_image = img.copy()
-            st.session_state.history.append(img.copy())
-            st.success("Denoise applied!")
+    preview_img = img.copy()
+    cv_img = cv2.cvtColor(np.array(preview_img), cv2.COLOR_RGB2BGR)
+
+    if fast_denoise > 0:
+        denoised = cv2.fastNlMeansDenoisingColored(
+            cv_img, None,
+            h=int(fast_denoise * 20),
+            hColor=int(fast_denoise * 20),
+            templateWindowSize=7,
+            searchWindowSize=21
+        )
+        cv_img = denoised
+
+    if smooth_denoise > 0:
+        ksize = 5
+        denoised = cv2.medianBlur(cv_img, ksize)
+        cv_img = denoised
+
+    preview_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+
+    if apply_denoise:
+        img = preview_img.copy()
+        st.session_state.base_image = img.copy()
+        st.session_state.history.append(img.copy())
+        st.success("Denoise applied!")
 
     # ---- Filters & Adjustments ----
+    temp_img = preview_img.copy()
     if apply_filters:
         for f in apply_filters:
             intensity = filter_intensities.get(f, 1.0)
