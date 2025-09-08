@@ -6,13 +6,11 @@ import cv2
 st.set_page_config(page_title="Image Editor", layout="centered")
 st.title("🖼️ Simple Image Editor")
 
-# --- Store state ---
 if 'base_image' not in st.session_state:
     st.session_state.base_image = None
 if 'edited_image' not in st.session_state:
     st.session_state.edited_image = None
 
-# --- File uploader ---
 uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
 if uploaded_file:
     st.session_state.base_image = Image.open(uploaded_file)
@@ -26,7 +24,7 @@ if st.session_state.base_image:
     contrast = st.slider("Contrast", 0.0, 2.0, 1.0, 0.01)
     sharpness = st.slider("Sharpness", 0.0, 5.0, 1.0, 0.1)
 
-    # --- Apply filters ONLY if any value is changed ---
+    # ✅ Apply filters only if user actually changes a slider
     if brightness != 1.0 or contrast != 1.0 or sharpness != 1.0:
         temp_img = st.session_state.base_image.copy()
 
@@ -48,7 +46,6 @@ if st.session_state.base_image:
             temp_img = ImageEnhance.Sharpness(temp_img).enhance(sharpness)
 
         st.session_state.edited_image = temp_img
+    
+    if st.session_state.edited_image:
         st.image(st.session_state.edited_image, caption="Edited Image", use_column_width=True)
-    else:
-        # Show the original if no changes made
-        st.image(st.session_state.base_image, caption="Edited Image (No changes)", use_column_width=True)
